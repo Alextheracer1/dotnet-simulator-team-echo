@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/Projektmappenelemente/">
+    <File Path="docs/development-journal/Nikolas-Giesen.md" />
+  </Folder>
+  <Project Path="PV_Simulator/PV_Simulator.csproj" />
+</Solution>
