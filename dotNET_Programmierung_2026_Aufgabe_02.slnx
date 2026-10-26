@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Dual-Port-Charger/WS26-Dual-Port-Charger.csproj" />
+  <Project Path="ModbusDiagnoseClient/ModbusDiagnoseClient.csproj" />
+  <Project Path="PV_Simulator/PV_Simulator/PV_Simulator.csproj" />
+  <Project Path="TeamShared/TeamShared.csproj" />
+  <Project Path="Battery/Battery.csproj" />
+</Solution>

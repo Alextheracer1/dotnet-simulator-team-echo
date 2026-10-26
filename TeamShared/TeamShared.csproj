@@ -11,4 +11,8 @@
       <HintPath>..\EasyModbus.dll</HintPath>
     </Reference>
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="EasyModbusTCP.NETCore" Version="1.0.0" />
+  </ItemGroup>
 </Project>

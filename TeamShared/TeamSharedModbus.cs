@@ -1,9 +1,7 @@
 using System;
 using EasyModbus;
 
-//namespace TeamShared.Modbus
-
-namespace Modbus_Server
+namespace TeamShared
 {
     /// <summary>
     /// Defines the common register layout required for all field devices according to LB02.

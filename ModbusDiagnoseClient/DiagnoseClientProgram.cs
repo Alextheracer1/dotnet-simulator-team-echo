@@ -1,8 +1,8 @@
 using System;
 using EasyModbus;
-using TeamShared.Modbus; // Make sure to reference your shared class library project
+using TeamShared; // Make sure to reference your shared class library project
 
-namespace Modbus_Client
+namespace ModbusDiagnoseClient
 {
     class Program
     {

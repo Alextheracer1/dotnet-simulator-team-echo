@@ -1,3 +1,6 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using PV_Simulator.ConsoleApp;
 using PV_Simulator.Domain;
 

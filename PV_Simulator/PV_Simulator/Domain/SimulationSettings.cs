@@ -1,3 +1,5 @@
+using System;
+
 namespace PV_Simulator.Domain;
 
 public sealed record SimulationSettings

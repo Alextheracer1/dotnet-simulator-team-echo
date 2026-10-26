@@ -1,3 +1,4 @@
+using System;
 using PV_Simulator.Domain;
 
 namespace PV_Simulator.Weather;
