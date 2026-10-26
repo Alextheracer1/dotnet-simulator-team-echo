@@ -7,14 +7,30 @@
   "targets": {
     ".NETCoreApp,Version=v10.0": {
       "PV_Simulator/1.0.0": {
+        "dependencies": {
+          "TeamConsoleShared": "1.0.0"
+        },
         "runtime": {
           "PV_Simulator.dll": {}
+        }
+      },
+      "TeamConsoleShared/1.0.0": {
+        "runtime": {
+          "TeamConsoleShared.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
         }
       }
     }
   },
   "libraries": {
     "PV_Simulator/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "TeamConsoleShared/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

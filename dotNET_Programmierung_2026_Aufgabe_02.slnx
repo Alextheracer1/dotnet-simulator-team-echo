@@ -4,4 +4,8 @@
   <Project Path="PV_Simulator/PV_Simulator/PV_Simulator.csproj" />
   <Project Path="TeamShared/TeamShared.csproj" />
   <Project Path="Battery/Battery.csproj" />
+  <Project Path="WindTurbine_Simulator/WindTurbine_Simulator.csproj" />
+  <Project Path="TeamConsoleShared/TeamConsoleShared.csproj" />
 </Solution>
+
+

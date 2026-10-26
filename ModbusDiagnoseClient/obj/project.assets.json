@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "targets": {
     "net10.0": {
       "EasyModbusTCP.NETCore/1.0.0": {
@@ -266,24 +266,31 @@
     ]
   },
   "packageFolders": {
-    "/Users/alex/.nuget/packages/": {}
+    "C:\\Users\\nikol\\.nuget\\packages\\": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/alex/Github/dotnet-simulator-team-echo/ModbusDiagnoseClient/ModbusDiagnoseClient.csproj",
+      "projectUniqueName": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\ModbusDiagnoseClient\\ModbusDiagnoseClient.csproj",
       "projectName": "ModbusDiagnoseClient",
-      "projectPath": "/Users/alex/Github/dotnet-simulator-team-echo/ModbusDiagnoseClient/ModbusDiagnoseClient.csproj",
-      "packagesPath": "/Users/alex/.nuget/packages/",
-      "outputPath": "/Users/alex/Github/dotnet-simulator-team-echo/ModbusDiagnoseClient/obj/",
+      "projectPath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\ModbusDiagnoseClient\\ModbusDiagnoseClient.csproj",
+      "packagesPath": "C:\\Users\\nikol\\.nuget\\packages\\",
+      "outputPath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\ModbusDiagnoseClient\\obj\\",
       "projectStyle": "PackageReference",
+      "fallbackFolders": [
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+      ],
       "configFilePaths": [
-        "/Users/alex/.nuget/NuGet/NuGet.Config"
+        "C:\\Users\\nikol\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
       ],
       "sources": {
+        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
@@ -291,8 +298,8 @@
           "framework": "net10.0",
           "targetAlias": "net10.0",
           "projectReferences": {
-            "/Users/alex/Github/dotnet-simulator-team-echo/TeamShared/TeamShared.csproj": {
-              "projectPath": "/Users/alex/Github/dotnet-simulator-team-echo/TeamShared/TeamShared.csproj"
+            "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\TeamShared\\TeamShared.csproj": {
+              "projectPath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\TeamShared\\TeamShared.csproj"
             }
           }
         }
@@ -307,7 +314,7 @@
         "auditLevel": "low",
         "auditMode": "all"
       },
-      "SdkAnalysisLevel": "10.0.200"
+      "SdkAnalysisLevel": "10.0.400"
     },
     "frameworks": {
       "net10.0": {
@@ -329,7 +336,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/10.0.201/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.401/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.CSharp": "(,4.7.32767]",
           "Microsoft.VisualBasic": "(,10.4.32767]",

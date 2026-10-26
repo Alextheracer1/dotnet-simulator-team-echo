@@ -38,3 +38,19 @@ C:\Users\nazar\AppData\Local\Temp\BatteryIdleBuild\Debug\net10.0\Battery.runtime
 C:\Users\nazar\AppData\Local\Temp\BatteryIdleBuild\Debug\net10.0\Battery.dll
 C:\Users\nazar\AppData\Local\Temp\BatteryIdleBuild\Debug\net10.0\Battery.pdb
 C:\Users\nazar\VSComunity_Repository\NET\Battery\obj\Debug\net10.0\Battery.csproj.Up2Date
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\bin\Debug\net10.0\Battery.exe
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\bin\Debug\net10.0\Battery.deps.json
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\bin\Debug\net10.0\Battery.runtimeconfig.json
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\bin\Debug\net10.0\Battery.dll
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\bin\Debug\net10.0\Battery.pdb
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.GeneratedMSBuildEditorConfig.editorconfig
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.AssemblyInfoInputs.cache
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.AssemblyInfo.cs
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.csproj.CoreCompileInputs.cache
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.sourcelink.json
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.dll
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\refint\Battery.dll
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.pdb
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.genruntimeconfig.cache
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\ref\Battery.dll
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.csproj.Up2Date
