@@ -1,11 +1,12 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace WS26_Dual_Port_Charger
 {
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             var timeStep = TimeSpan.FromMinutes(1); 
             var logFilePath = Path.Combine(Directory.GetCurrentDirectory(), "logs", "simulation.csv");
@@ -14,8 +15,7 @@ namespace WS26_Dual_Port_Charger
             var simulator = new SimulatorEngine(device, timeStep, logFilePath);
             var ui = new ConsoleUI(device, simulator);
             
-            // Start simulation and pass the render method to be called every tick
-            simulator.Start(ui.Render);
+            await simulator.StartAsync(ui.Render);
         }
     }
 }
