@@ -9,7 +9,7 @@ namespace ModbusDiagnoseClient
         static void Main(string[] args)
         {
             Console.WriteLine("=====================================");
-            Console.WriteLine("=== LB02 Modbus-Diagnose-Client   ===");
+            Console.WriteLine("=== Modbus-Diagnose-Client   ===");
             Console.WriteLine("=====================================");
             
             // 1. Selectable Host, Port, and Target Device [cite: 4]

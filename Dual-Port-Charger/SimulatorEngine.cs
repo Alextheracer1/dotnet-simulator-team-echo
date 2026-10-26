@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
+using System.Threading.Tasks;
+using TeamShared;
+using EasyModbus;
+
 
 namespace WS26_Dual_Port_Charger
 {
@@ -12,6 +15,8 @@ namespace WS26_Dual_Port_Charger
         private readonly string _logFilePath;
         private bool _isRunning = true;
         
+        private readonly FieldDeviceModbusServer _modbusServer;
+
         public bool AutoMode { get; private set; } = true;
         public DateTime SimulatedTime { get; private set; }
         public int DelayMs { get; private set; } = 1000; 
@@ -21,6 +26,7 @@ namespace WS26_Dual_Port_Charger
             _device = device;
             _timeStep = timeStep;
             _logFilePath = logFilePath;
+            _modbusServer = new FieldDeviceModbusServer(1502, 1);
             
             SimulatedTime = new DateTime(2026, 7, 15, 0, 0, 0); 
     
@@ -36,42 +42,82 @@ namespace WS26_Dual_Port_Charger
             }
         }
 
-        public void Start(Action renderUi)
+        public async Task StartAsync(Action renderUi)
         {
             Console.Clear();
             var endTime = SimulatedTime.AddHours(24);
 
-            while (_isRunning && SimulatedTime < endTime)
-            {
-                // Process all buffered inputs immediately to prevent lag
-                while (Console.KeyAvailable)
-                {
-                    var key = Console.ReadKey(true);
-                    HandleUserInput(key.Key);
-                }
+            _modbusServer.Start();
 
-                SimulatedTime += _timeStep;
-                UpdateSimulation();
-                LogData();
-                renderUi();
-                
-                Thread.Sleep(DelayMs); 
+            try 
+            {
+                while (_isRunning && SimulatedTime < endTime)
+                {
+                    while (Console.KeyAvailable)
+                    {
+                        var key = Console.ReadKey(true);
+                        await HandleUserInputAsync(key.Key);
+                    }
+
+                    if (_modbusServer.CheckAndClearErrorReset())
+                    {
+                        _device.ResetFault();
+                    }
+
+                    var setpoint = _modbusServer.ReadSetpoint();
+                    if (setpoint > 0)
+                    {
+                        _device.SetPowerLimit((decimal)setpoint);
+                    }
+
+                    SimulatedTime += _timeStep;
+                    UpdateSimulation();
+                    UpdateModbusRegisters();
+                    LogData();
+                    renderUi();
+                    
+                    await Task.Delay(DelayMs); 
+                }
+            }
+            finally 
+            {
+                _modbusServer.Stop();
             }
             
             Console.SetCursorPosition(0, 24);
             Console.WriteLine("Simulation beendet (24h erreicht oder manuell abgebrochen).");
         }
 
+        private void UpdateModbusRegisters()
+        {
+            short opState = (short)(_device.Fault ? 3 : 2);
+            short errCode = (short)(_device.Fault ? 1 : 0);
+            int virtualTime = (int)((DateTimeOffset)SimulatedTime).ToUnixTimeSeconds();
+
+            _modbusServer.UpdateCommonRegisters(
+                opState, 
+                errCode, 
+                (float)_device.ActivePower, 
+                (float)_device.Energy, 
+                virtualTime, 
+                1
+            );
+
+            // Gerätespezifische Register: SOC beider Ladepunkte
+            var regs = _modbusServer.HoldingRegisters;
+            int[] soc1 = ModbusClient.ConvertFloatToRegisters((float)_device.ChargingPoints[0].SOC);
+            int[] soc2 = ModbusClient.ConvertFloatToRegisters((float)_device.ChargingPoints[1].SOC);
+
+            regs[CommonRegisterMap.DeviceSpecificStart] = (short)soc1[0];
+            regs[CommonRegisterMap.DeviceSpecificStart + 1] = (short)soc1[1];
+            regs[CommonRegisterMap.DeviceSpecificStart + 2] = (short)soc2[0];
+            regs[CommonRegisterMap.DeviceSpecificStart + 3] = (short)soc2[1];
+        }
+
         private void UpdateSimulation()
         {
-            if (AutoMode)
-            {
-                _device.UpdateAutoMode(_timeStep);
-            }
-            else
-            {
-                _device.UpdateManualMode(_timeStep);
-            }
+            if (AutoMode) _device.UpdateAutoMode(_timeStep);
+            else _device.UpdateManualMode(_timeStep);
         }
 
         private void LogData()
@@ -85,11 +131,10 @@ namespace WS26_Dual_Port_Charger
                 _device.ChargingPoints[0].SOC.ToString("F2"),
                 _device.ChargingPoints[1].SOC.ToString("F2")
             };
-        
             File.AppendAllLines(_logFilePath, new[] { string.Join(",", data) });
         }
 
-        private void HandleUserInput(ConsoleKey key)
+        private async Task HandleUserInputAsync(ConsoleKey key)
         {
             switch (key)
             {
@@ -97,7 +142,7 @@ namespace WS26_Dual_Port_Charger
                     while (true)
                     {
                         if (Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.P) break;
-                        Thread.Sleep(100);
+                        await Task.Delay(100);
                     }
                     break;
                 case ConsoleKey.A:
@@ -105,7 +150,6 @@ namespace WS26_Dual_Port_Charger
                     break;
                 case ConsoleKey.M: 
                     AutoMode = false;
-                    // Fulfill requirement: Enforce the 2 Teslas to be assigned when switching to Manual
                     _device.EnforceManualModeCars();
                     break;
                 case ConsoleKey.F:

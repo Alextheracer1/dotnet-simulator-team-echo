@@ -6,13 +6,14 @@ namespace WS26_Dual_Port_Charger
 {
     public class Device
     {
-        private const decimal TotalStationPower = 300000m; 
+        // Wurde von const auf eine private Variable geändert, um durch Modbus steuerbar zu sein
+        private decimal _totalStationPower = 300000m; 
         private readonly Random _random = new Random();
 
         private readonly List<ChargingPoint> _chargingPoints = new List<ChargingPoint>
         {
-            new ChargingPoint { Id = 1, MaxPower = TotalStationPower, AssignedEV = EVModelCatalog.ModelS100D, IsConnected = true, SOC = 0.10m, TargetSOC = 0.80m },
-            new ChargingPoint { Id = 2, MaxPower = TotalStationPower, AssignedEV = EVModelCatalog.ModelY2026, IsConnected = true, SOC = 0.15m, TargetSOC = 0.80m }
+            new ChargingPoint { Id = 1, MaxPower = 300000m, AssignedEV = EVModelCatalog.ModelS100D, IsConnected = true, SOC = 0.10m, TargetSOC = 0.80m },
+            new ChargingPoint { Id = 2, MaxPower = 300000m, AssignedEV = EVModelCatalog.ModelY2026, IsConnected = true, SOC = 0.15m, TargetSOC = 0.80m }
         };
 
         public List<ChargingPoint> ChargingPoints => _chargingPoints;
@@ -20,7 +21,15 @@ namespace WS26_Dual_Port_Charger
         public string Status => Fault ? "Störung" : "Funktioniert";
         public decimal ActivePower => _chargingPoints.Sum(cp => cp.ActivePower);
         public decimal Energy => _chargingPoints.Sum(cp => cp.Energy);
-        public decimal Power => TotalStationPower;
+        
+        // Gibt das dynamische Modbus-Limit zurück
+        public decimal Power => _totalStationPower;
+
+        // Neue Methode, um das Limit via Modbus (Setpoint) zu setzen
+        public void SetPowerLimit(decimal limit)
+        {
+            _totalStationPower = Math.Max(0, limit);
+        }
 
         public void UpdateAutoMode(TimeSpan timeStep)
         {
@@ -78,7 +87,8 @@ namespace WS26_Dual_Port_Charger
                                              .OrderBy(cp => cp.GetRequestedPower())
                                              .ToList();
             
-            var availableStationPower = TotalStationPower;
+            // Verwendet die dynamisch steuerbare Stationsleistung
+            var availableStationPower = _totalStationPower;
             
             foreach (var cp in _chargingPoints) cp.AvailablePower = 0;
 

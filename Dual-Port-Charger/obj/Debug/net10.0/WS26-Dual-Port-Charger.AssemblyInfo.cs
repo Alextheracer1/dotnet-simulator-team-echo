@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WS26-Dual-Port-Charger")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2afc90f5af3c79202c3504c9487e334de11e44dc")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+43f25947fad38ba8bdfffc8550663e50fecb7907")]
 [assembly: System.Reflection.AssemblyProductAttribute("WS26-Dual-Port-Charger")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WS26-Dual-Port-Charger")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
