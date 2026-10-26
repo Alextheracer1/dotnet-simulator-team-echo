@@ -21,15 +21,14 @@ Die Systementwicklung wurde nach Vorgabe gleichmäßig im Team aufgeteilt. Jedes
 
 | Modul / Projekt | Kurzbeschreibung | Hauptverantwortliche Person |
 | :--- | :--- | :--- |
-| **TeamShared** | Gemeinsame Class Library mit Modbus-Wrappern, Register-Mapping (01-12) und DTOs. | *[Name 1]* |
-| **SimulationsMaster** | Zentrale Steuerung (Start, Pause, Geschwindigkeit) und Verteilung der virtuellen Zeit. | *[Name 2]* |
-| **WeatherSimulator** | Liefert orts- und zeitabhängige Wetterdaten (Sonne, Temperatur) für alle Geräte. | *[Name 3]* |
-| **PvSimulator** | Feldgerät: Simuliert eine PV-Anlage und stellt Daten per Modbus TCP bereit. | *[Name 1]* |
-| **BatterySimulator** | Feldgerät: Simuliert einen Batteriespeicher (Pflichtgerät). | *[Name 2]* |
-| **DualPortCharger** | Feldgerät: Simuliert eine Ladesäule für E-Autos (Pflichtgerät). | *[Name 3]* |
-| **ModbusDiagnoseClient**| Konsolen-Tool zum Auslesen der Register und Schreiben von Setpoints zu Testzwecken. | *[Name 1]* |
+| **TeamShared** | Gemeinsame Class Library mit Modbus-Wrappern, Register-Mapping (01-12) und DTOs. | *Alexander Graf* |
+| **SimulationsMaster** | Zentrale Steuerung (Start, Pause, Geschwindigkeit) und Verteilung der virtuellen Zeit. | *Nazar Burdeinyi* |
+| **WeatherSimulator** | Liefert orts- und zeitabhängige Wetterdaten (Sonne, Temperatur) für alle Geräte. | *Nikolas Gielsen* |
+| **PvSimulator** | Feldgerät: Simuliert eine PV-Anlage und stellt Daten per Modbus TCP bereit. | *Nikolas Gielsen* |
+| **BatterySimulator** | Feldgerät: Simuliert einen Batteriespeicher (Pflichtgerät). | *Nazar Burdeinyi* |
+| **DualPortCharger** | Feldgerät: Simuliert eine Ladesäule für E-Autos (Pflichtgerät). | *Alexander Graf* |
+| **ModbusDiagnoseClient**| Konsolen-Tool zum Auslesen der Register und Schreiben von Setpoints zu Testzwecken. | *Alexander Graf* |
 
-*(Hinweis: Passen Sie die Namenszuordnungen so an, dass die Last gleichmäßig auf Ihr 2er- oder 3er-Team verteilt ist.)*
 
 ## Startreihenfolge und Bedienhinweise
 
