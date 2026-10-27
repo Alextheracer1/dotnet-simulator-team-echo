@@ -1,4 +1,4 @@
-# Energy Twin 2026 - Verteiltes Simulationssystem (Team 01)
+# Energy Twin 2026 - Verteiltes Simulationssystem (Team Echo)
 
 Dieses Repository enthält die Lösung für die **LB02: Vom einzelnen Simulator zum verteilten Teamsystem**. Es handelt sich um ein verteiltes System aus mehreren eigenständigen .NET 10 Applikationen, die über eine gemeinsame virtuelle Zeit synchronisiert werden und ihre Gerätedaten via Modbus TCP bereitstellen.
 
