@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace WS26_Dual_Port_Charger
+namespace Dual_Port_Charger
 {
     public class Device
     {

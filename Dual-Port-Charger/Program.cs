@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 
-namespace WS26_Dual_Port_Charger
+namespace Dual_Port_Charger
 {
     class Program
     {

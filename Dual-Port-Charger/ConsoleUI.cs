@@ -1,6 +1,6 @@
 using System;
 
-namespace WS26_Dual_Port_Charger
+namespace Dual_Port_Charger
 {
     public class ConsoleUI
     {
