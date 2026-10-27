@@ -1,31 +1,25 @@
 {
   "format": 1,
   "restore": {
-    "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\TeamShared\\TeamShared.csproj": {}
+    "/Users/alex/Github/dotnet-simulator-team-echo/TeamShared/TeamShared.csproj": {}
   },
   "projects": {
-    "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\TeamShared\\TeamShared.csproj": {
+    "/Users/alex/Github/dotnet-simulator-team-echo/TeamShared/TeamShared.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\TeamShared\\TeamShared.csproj",
+        "projectUniqueName": "/Users/alex/Github/dotnet-simulator-team-echo/TeamShared/TeamShared.csproj",
         "projectName": "TeamShared",
-        "projectPath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\TeamShared\\TeamShared.csproj",
-        "packagesPath": "C:\\Users\\nikol\\.nuget\\packages\\",
-        "outputPath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\TeamShared\\obj\\",
+        "projectPath": "/Users/alex/Github/dotnet-simulator-team-echo/TeamShared/TeamShared.csproj",
+        "packagesPath": "/Users/alex/.nuget/packages/",
+        "outputPath": "/Users/alex/Github/dotnet-simulator-team-echo/TeamShared/obj/",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-        ],
         "configFilePaths": [
-          "C:\\Users\\nikol\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+          "/Users/alex/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
         ],
         "sources": {
-          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -45,7 +39,7 @@
           "auditLevel": "low",
           "auditMode": "all"
         },
-        "SdkAnalysisLevel": "10.0.400"
+        "SdkAnalysisLevel": "10.0.200"
       },
       "frameworks": {
         "net10.0": {
@@ -73,7 +67,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.401/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/10.0.201/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
