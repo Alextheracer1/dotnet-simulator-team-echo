@@ -1,56 +1,71 @@
-C:\Users\nazar\VSComunity_Repository\NET\Battery\bin\Debug\net10.0\Battery.exe
-C:\Users\nazar\VSComunity_Repository\NET\Battery\bin\Debug\net10.0\Battery.deps.json
-C:\Users\nazar\VSComunity_Repository\NET\Battery\bin\Debug\net10.0\Battery.runtimeconfig.json
-C:\Users\nazar\VSComunity_Repository\NET\Battery\bin\Debug\net10.0\Battery.dll
-C:\Users\nazar\VSComunity_Repository\NET\Battery\bin\Debug\net10.0\Battery.pdb
-C:\Users\nazar\VSComunity_Repository\NET\Battery\obj\Debug\net10.0\Battery.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\nazar\VSComunity_Repository\NET\Battery\obj\Debug\net10.0\Battery.AssemblyInfoInputs.cache
-C:\Users\nazar\VSComunity_Repository\NET\Battery\obj\Debug\net10.0\Battery.AssemblyInfo.cs
-C:\Users\nazar\VSComunity_Repository\NET\Battery\obj\Debug\net10.0\Battery.csproj.CoreCompileInputs.cache
-C:\Users\nazar\VSComunity_Repository\NET\Battery\obj\Debug\net10.0\Battery.dll
-C:\Users\nazar\VSComunity_Repository\NET\Battery\obj\Debug\net10.0\refint\Battery.dll
-C:\Users\nazar\VSComunity_Repository\NET\Battery\obj\Debug\net10.0\Battery.pdb
-C:\Users\nazar\VSComunity_Repository\NET\Battery\obj\Debug\net10.0\Battery.genruntimeconfig.cache
-C:\Users\nazar\VSComunity_Repository\NET\Battery\obj\Debug\net10.0\ref\Battery.dll
-C:\Users\nazar\AppData\Local\Temp\BatteryBuild\Debug\net10.0\Battery.exe
-C:\Users\nazar\AppData\Local\Temp\BatteryBuild\Debug\net10.0\Battery.deps.json
-C:\Users\nazar\AppData\Local\Temp\BatteryBuild\Debug\net10.0\Battery.runtimeconfig.json
-C:\Users\nazar\AppData\Local\Temp\BatteryBuild\Debug\net10.0\Battery.dll
-C:\Users\nazar\AppData\Local\Temp\BatteryBuild\Debug\net10.0\Battery.pdb
-C:\Users\nazar\AppData\Local\Temp\BatteryBuild2\Debug\net10.0\Battery.exe
-C:\Users\nazar\AppData\Local\Temp\BatteryBuild2\Debug\net10.0\Battery.deps.json
-C:\Users\nazar\AppData\Local\Temp\BatteryBuild2\Debug\net10.0\Battery.runtimeconfig.json
-C:\Users\nazar\AppData\Local\Temp\BatteryBuild2\Debug\net10.0\Battery.dll
-C:\Users\nazar\AppData\Local\Temp\BatteryBuild2\Debug\net10.0\Battery.pdb
-C:\Users\nazar\AppData\Local\Temp\BatteryBuild3\Debug\net10.0\Battery.exe
-C:\Users\nazar\AppData\Local\Temp\BatteryBuild3\Debug\net10.0\Battery.deps.json
-C:\Users\nazar\AppData\Local\Temp\BatteryBuild3\Debug\net10.0\Battery.runtimeconfig.json
-C:\Users\nazar\AppData\Local\Temp\BatteryBuild3\Debug\net10.0\Battery.dll
-C:\Users\nazar\AppData\Local\Temp\BatteryBuild3\Debug\net10.0\Battery.pdb
-C:\Users\nazar\AppData\Local\Temp\BatteryHotkeysBuild\Debug\net10.0\Battery.exe
-C:\Users\nazar\AppData\Local\Temp\BatteryHotkeysBuild\Debug\net10.0\Battery.deps.json
-C:\Users\nazar\AppData\Local\Temp\BatteryHotkeysBuild\Debug\net10.0\Battery.runtimeconfig.json
-C:\Users\nazar\AppData\Local\Temp\BatteryHotkeysBuild\Debug\net10.0\Battery.dll
-C:\Users\nazar\AppData\Local\Temp\BatteryHotkeysBuild\Debug\net10.0\Battery.pdb
-C:\Users\nazar\AppData\Local\Temp\BatteryIdleBuild\Debug\net10.0\Battery.exe
-C:\Users\nazar\AppData\Local\Temp\BatteryIdleBuild\Debug\net10.0\Battery.deps.json
-C:\Users\nazar\AppData\Local\Temp\BatteryIdleBuild\Debug\net10.0\Battery.runtimeconfig.json
-C:\Users\nazar\AppData\Local\Temp\BatteryIdleBuild\Debug\net10.0\Battery.dll
-C:\Users\nazar\AppData\Local\Temp\BatteryIdleBuild\Debug\net10.0\Battery.pdb
-C:\Users\nazar\VSComunity_Repository\NET\Battery\obj\Debug\net10.0\Battery.csproj.Up2Date
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\bin\Debug\net10.0\Battery.exe
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\bin\Debug\net10.0\Battery.deps.json
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\bin\Debug\net10.0\Battery.runtimeconfig.json
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\bin\Debug\net10.0\Battery.dll
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\bin\Debug\net10.0\Battery.pdb
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.GeneratedMSBuildEditorConfig.editorconfig
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.AssemblyInfoInputs.cache
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.AssemblyInfo.cs
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.csproj.CoreCompileInputs.cache
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.sourcelink.json
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.dll
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\refint\Battery.dll
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.pdb
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.genruntimeconfig.cache
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\ref\Battery.dll
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\Battery\obj\Debug\net10.0\Battery.csproj.Up2Date
+C:/Users/nazar/VSComunity_Repository/NET/Battery/bin/Debug/net10.0/Battery.exe
+C:/Users/nazar/VSComunity_Repository/NET/Battery/bin/Debug/net10.0/Battery.deps.json
+C:/Users/nazar/VSComunity_Repository/NET/Battery/bin/Debug/net10.0/Battery.runtimeconfig.json
+C:/Users/nazar/VSComunity_Repository/NET/Battery/bin/Debug/net10.0/Battery.dll
+C:/Users/nazar/VSComunity_Repository/NET/Battery/bin/Debug/net10.0/Battery.pdb
+C:/Users/nazar/VSComunity_Repository/NET/Battery/obj/Debug/net10.0/Battery.GeneratedMSBuildEditorConfig.editorconfig
+C:/Users/nazar/VSComunity_Repository/NET/Battery/obj/Debug/net10.0/Battery.AssemblyInfoInputs.cache
+C:/Users/nazar/VSComunity_Repository/NET/Battery/obj/Debug/net10.0/Battery.AssemblyInfo.cs
+C:/Users/nazar/VSComunity_Repository/NET/Battery/obj/Debug/net10.0/Battery.csproj.CoreCompileInputs.cache
+C:/Users/nazar/VSComunity_Repository/NET/Battery/obj/Debug/net10.0/Battery.dll
+C:/Users/nazar/VSComunity_Repository/NET/Battery/obj/Debug/net10.0/refint/Battery.dll
+C:/Users/nazar/VSComunity_Repository/NET/Battery/obj/Debug/net10.0/Battery.pdb
+C:/Users/nazar/VSComunity_Repository/NET/Battery/obj/Debug/net10.0/Battery.genruntimeconfig.cache
+C:/Users/nazar/VSComunity_Repository/NET/Battery/obj/Debug/net10.0/ref/Battery.dll
+C:/Users/nazar/AppData/Local/Temp/BatteryBuild/Debug/net10.0/Battery.exe
+C:/Users/nazar/AppData/Local/Temp/BatteryBuild/Debug/net10.0/Battery.deps.json
+C:/Users/nazar/AppData/Local/Temp/BatteryBuild/Debug/net10.0/Battery.runtimeconfig.json
+C:/Users/nazar/AppData/Local/Temp/BatteryBuild/Debug/net10.0/Battery.dll
+C:/Users/nazar/AppData/Local/Temp/BatteryBuild/Debug/net10.0/Battery.pdb
+C:/Users/nazar/AppData/Local/Temp/BatteryBuild2/Debug/net10.0/Battery.exe
+C:/Users/nazar/AppData/Local/Temp/BatteryBuild2/Debug/net10.0/Battery.deps.json
+C:/Users/nazar/AppData/Local/Temp/BatteryBuild2/Debug/net10.0/Battery.runtimeconfig.json
+C:/Users/nazar/AppData/Local/Temp/BatteryBuild2/Debug/net10.0/Battery.dll
+C:/Users/nazar/AppData/Local/Temp/BatteryBuild2/Debug/net10.0/Battery.pdb
+C:/Users/nazar/AppData/Local/Temp/BatteryBuild3/Debug/net10.0/Battery.exe
+C:/Users/nazar/AppData/Local/Temp/BatteryBuild3/Debug/net10.0/Battery.deps.json
+C:/Users/nazar/AppData/Local/Temp/BatteryBuild3/Debug/net10.0/Battery.runtimeconfig.json
+C:/Users/nazar/AppData/Local/Temp/BatteryBuild3/Debug/net10.0/Battery.dll
+C:/Users/nazar/AppData/Local/Temp/BatteryBuild3/Debug/net10.0/Battery.pdb
+C:/Users/nazar/AppData/Local/Temp/BatteryHotkeysBuild/Debug/net10.0/Battery.exe
+C:/Users/nazar/AppData/Local/Temp/BatteryHotkeysBuild/Debug/net10.0/Battery.deps.json
+C:/Users/nazar/AppData/Local/Temp/BatteryHotkeysBuild/Debug/net10.0/Battery.runtimeconfig.json
+C:/Users/nazar/AppData/Local/Temp/BatteryHotkeysBuild/Debug/net10.0/Battery.dll
+C:/Users/nazar/AppData/Local/Temp/BatteryHotkeysBuild/Debug/net10.0/Battery.pdb
+C:/Users/nazar/AppData/Local/Temp/BatteryIdleBuild/Debug/net10.0/Battery.exe
+C:/Users/nazar/AppData/Local/Temp/BatteryIdleBuild/Debug/net10.0/Battery.deps.json
+C:/Users/nazar/AppData/Local/Temp/BatteryIdleBuild/Debug/net10.0/Battery.runtimeconfig.json
+C:/Users/nazar/AppData/Local/Temp/BatteryIdleBuild/Debug/net10.0/Battery.dll
+C:/Users/nazar/AppData/Local/Temp/BatteryIdleBuild/Debug/net10.0/Battery.pdb
+C:/Users/nazar/VSComunity_Repository/NET/Battery/obj/Debug/net10.0/Battery.csproj.Up2Date
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/bin/Debug/net10.0/Battery.exe
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/bin/Debug/net10.0/Battery.deps.json
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/bin/Debug/net10.0/Battery.runtimeconfig.json
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/bin/Debug/net10.0/Battery.dll
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/bin/Debug/net10.0/Battery.pdb
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.GeneratedMSBuildEditorConfig.editorconfig
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.AssemblyInfoInputs.cache
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.AssemblyInfo.cs
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.csproj.CoreCompileInputs.cache
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.sourcelink.json
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.dll
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/refint/Battery.dll
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.pdb
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.genruntimeconfig.cache
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/ref/Battery.dll
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.csproj.Up2Date
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/bin/Debug/net10.0/Battery
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/bin/Debug/net10.0/Battery.deps.json
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/bin/Debug/net10.0/Battery.runtimeconfig.json
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/bin/Debug/net10.0/Battery.dll
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/bin/Debug/net10.0/Battery.pdb
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.GeneratedMSBuildEditorConfig.editorconfig
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.AssemblyInfoInputs.cache
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.AssemblyInfo.cs
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.csproj.CoreCompileInputs.cache
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.sourcelink.json
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.dll
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/refint/Battery.dll
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.pdb
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.genruntimeconfig.cache
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/ref/Battery.dll

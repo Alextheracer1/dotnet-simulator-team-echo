@@ -1,8 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "aH5TeJTpmS0=",
+  "dgSpecHash": "IyeWBGnMYbE=",
   "success": true,
   "projectFilePath": "/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/PV_Simulator.csproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "/Users/alex/.nuget/packages/spectre.console/0.57.2/spectre.console.0.57.2.nupkg.sha512",
+    "/Users/alex/.nuget/packages/spectre.console.ansi/0.57.2/spectre.console.ansi.0.57.2.nupkg.sha512"
+  ],
   "logs": []
 }

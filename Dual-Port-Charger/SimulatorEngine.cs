@@ -53,7 +53,7 @@ namespace Dual_Port_Charger
             {
                 while (_isRunning && SimulatedTime < endTime)
                 {
-                    while (Console.KeyAvailable)
+                    while (!Console.IsInputRedirected && Console.KeyAvailable)
                     {
                         var key = Console.ReadKey(true);
                         await HandleUserInputAsync(key.Key);
@@ -141,7 +141,7 @@ namespace Dual_Port_Charger
                 case ConsoleKey.P:
                     while (true)
                     {
-                        if (Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.P) break;
+                        if (!Console.IsInputRedirected && Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.P) break;
                         await Task.Delay(100);
                     }
                     break;

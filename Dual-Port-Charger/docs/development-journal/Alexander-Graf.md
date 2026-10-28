@@ -31,3 +31,11 @@ Optionale Tags bei Relevanz:
 - **KI:** KI (Copilot) genutzt, um einen ersten Vorschlag für das faire Aufteilen der Leistung im Lastmanagement (`ApplyDynamicLoadBalancing`) zu entwerfen. Den Code anschließend an die eigene Logik der `ChargingPoints` angepasst.
 - **Artefact:** `logs/simulation.csv`, Anpassungen in `DeviceSimulation.cs` und `SimulatorEngine.cs`, Screenshots der Konsole mit aktiven Ladevorgängen und Fehlerzustand.
 - **Comment:** Die Zufallsparameter (10% Chance für Ankunft, 5%-20% Start-SOC) führen zu einem sehr realistischen und abwechslungsreichen Log-Verlauf in der CSV-Datei.
+
+## 2026-10-28 – Spectre.Console UI-Library & Dual-Port-Charger Refactoring
+
+- **Done:** Gemeinsame UI-Bibliothek `TeamConsoleShared` mit Spectre.Console implementiert. Umfasst modulare Komponenten (`StatusBadge`, `GaugeBar`, `MetricItem`, `MetricGrid`, `KeyBindingBar`), ein fluentes Layout-System (`SimulationDashboard`, `SimulationHeader`), Live-Display-Unterstützung (`LiveSimulationView`), Modbus-Diagnosetabellen (`RegisterTable`) und eine interaktive Demo (`DashboardDemo`). `Dual-Port-Charger` wurde als Referenzprojekt auf die neue Spectre.Console-Architektur migriert.
+- **KI:** Google Gemini 3.8 Flash (High) via Antigravity Assistant. Konzeptionierung nach GrillMe-Rücksprache, Erstellung der UI-Komponenten in `TeamConsoleShared`, Integration in `Dual-Port-Charger` sowie Behebung von Terminal-Sonderzeichen und ANSI-Markup-Formatierung.
+- **Artefact:** `TeamConsoleShared/Components/*`, `TeamConsoleShared/Layout/*`, `TeamConsoleShared/Live/*`, `TeamConsoleShared/Diagnostics/*`, `TeamConsoleShared/Demo/*`, `Dual-Port-Charger/ConsoleUI.cs`, `Dual-Port-Charger/Dual-Port-Charger.csproj`.
+- **Test:** Kompilierung aller Solution-Projekte via `dotnet build` sowie Testausführung des `Dual-Port-Charger` Simulators mit Überprüfung der gerenderten Panels, Gauges und Tastenleisten.
+- **Comment:** Die Trennung in wiederverwendbare Bausteine ermöglicht es auch den anderen Simulatoren (PV, Windkraft, Batterie) sowie dem Diagnose-Client, ohne Duplizierung auf dasselbe moderne Terminal-Dashboard aufzusetzen.

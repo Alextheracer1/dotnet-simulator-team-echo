@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "2Ksd7UXM9XA=",
+  "dgSpecHash": "a/0S98U8CwU=",
   "success": true,
   "projectFilePath": "/Users/alex/Github/dotnet-simulator-team-echo/Dual-Port-Charger/Dual-Port-Charger.csproj",
   "expectedPackageFiles": [
@@ -11,6 +11,8 @@
     "/Users/alex/.nuget/packages/runtime.native.system.io.ports/6.0.0/runtime.native.system.io.ports.6.0.0.nupkg.sha512",
     "/Users/alex/.nuget/packages/runtime.osx-arm64.runtime.native.system.io.ports/6.0.0/runtime.osx-arm64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
     "/Users/alex/.nuget/packages/runtime.osx-x64.runtime.native.system.io.ports/6.0.0/runtime.osx-x64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
+    "/Users/alex/.nuget/packages/spectre.console/0.57.2/spectre.console.0.57.2.nupkg.sha512",
+    "/Users/alex/.nuget/packages/spectre.console.ansi/0.57.2/spectre.console.ansi.0.57.2.nupkg.sha512",
     "/Users/alex/.nuget/packages/system.io.ports/6.0.0/system.io.ports.6.0.0.nupkg.sha512"
   ],
   "logs": []
