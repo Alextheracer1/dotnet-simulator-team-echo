@@ -14,6 +14,8 @@ public sealed class SimulationOptions
     public DateTime StartTime { get; init; } = DateTime.Today;
     public TimeSpan Duration { get; init; } = DefaultDuration;
     public string CsvPath { get; init; } = Path.Combine("data", "battery-run.csv");
+    public int ModbusPort { get; init; } = 1502;
+    public byte ModbusUnitId { get; init; } = 1;
     public IReadOnlyList<DeviceLoad> DeviceLoads { get; init; } = Array.Empty<DeviceLoad>();
     public double TotalDeviceDemandKW => DeviceLoads.Sum(device => device.PowerDemandKW);
 
@@ -48,5 +50,9 @@ public sealed class SimulationOptions
             throw new ArgumentOutOfRangeException(nameof(DeviceLoads), "Total device power demand must be finite.");
         if (string.IsNullOrWhiteSpace(CsvPath))
             throw new ArgumentException("A CSV output path is required.", nameof(CsvPath));
+        if (ModbusPort is < 1 or > 65535)
+            throw new ArgumentOutOfRangeException(nameof(ModbusPort), "Modbus TCP port must be between 1 and 65535.");
+        if (ModbusUnitId is < 1 or > 247)
+            throw new ArgumentOutOfRangeException(nameof(ModbusUnitId), "Modbus unit ID must be between 1 and 247.");
     }
 }

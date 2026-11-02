@@ -71,15 +71,15 @@ public sealed class BatteryModel
             }
         }
 
-        var hours = elapsed.TotalHours;
-        var energyChangeKWh = requested * hours;
+        var simulatedHours = elapsed.TotalHours;
+        var energyChangeKWh = requested * simulatedHours;
         if (energyChangeKWh > 0)
             energyChangeKWh = Math.Min(energyChangeKWh, CapacityKWh - StateOfChargeKWh);
         else if (energyChangeKWh < 0)
             energyChangeKWh = Math.Max(energyChangeKWh, -StateOfChargeKWh);
 
         StateOfChargeKWh = Math.Clamp(StateOfChargeKWh + energyChangeKWh, 0, CapacityKWh);
-        CurrentPowerKW = energyChangeKWh / hours;
+        CurrentPowerKW = energyChangeKWh / simulatedHours;
         if (energyChangeKWh > 0)
         {
             ChargedEnergyKWh += energyChangeKWh;
