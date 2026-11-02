@@ -5,6 +5,7 @@ using Battery.Battery;
 using Battery.ConsoleUi;
 using Battery.Persistence;
 using Battery.Simulation.Meters;
+using TeamShared.Simulation;
 
 namespace Battery.Simulation;
 
@@ -20,6 +21,7 @@ public sealed class BatterySimulator
     private readonly SimulationOptions _options;
     private readonly BatteryModel _battery;
     private readonly ConsoleDashboard _dashboard;
+    private readonly SimulationMasterClient? _simulationMasterClient;
     private readonly List<DeviceLoad> _deviceLoads;
     private readonly List<IEnergyMeter> _meters;
     private readonly MeterReadingObservable _meterUpdates = new();
@@ -36,16 +38,22 @@ public sealed class BatterySimulator
     private int _devicesToConfigure;
     private int _nextDeviceNumber = 1;
     private string? _notice;
+    private SimulationEnvironment? _masterEnvironment;
+    private bool _hasProcessedMasterStep;
+    private bool _masterControlsPause;
+    private BatteryModbusSnapshot? _modbusSnapshot;
+    private long _modbusSequence;
 
     public IObservable<MeterReading> MeterUpdates => _meterUpdates;
     public SimulationHistory History => _history;
 
-    public BatterySimulator(SimulationOptions options)
+    public BatterySimulator(SimulationOptions options, SimulationMasterClient? simulationMasterClient = null)
     {
         options.Validate();
         _options = options;
         _currentSimulationTime = options.StartTime;
         _deviceLoads = AssignSocketNumbers(options.DeviceLoads);
+        _simulationMasterClient = simulationMasterClient;
         _battery = new BatteryModel(
             options.CapacityKWh,
             options.MaximumChargePowerKW,
@@ -82,80 +90,141 @@ public sealed class BatterySimulator
         {
             await using var logger = new CsvSimulationLogger(_options.CsvPath);
             var elapsed = TimeSpan.Zero;
-            var realTimeAccumulator = TimeSpan.Zero;
-            var lastTimestamp = Stopwatch.GetTimestamp();
-            var lastRenderTimestamp = lastTimestamp;
-            var simulatedTime = _options.StartTime;
+            var simulatedTime = _currentSimulationTime;
             var meterReadings = await ReadMetersAsync(simulatedTime, cancellationToken);
             _history.RecordStateOfCharge(simulatedTime, _battery.StateOfChargePercent);
             PublishMeterReadings(meterReadings);
             await logger.WriteAsync(simulatedTime, _battery, meterReadings, cancellationToken);
-            RenderDashboard(simulatedTime, elapsed, _notice);
 
-            using var pollTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(25));
-            while (elapsed < _options.Duration && !_quit && !cancellationToken.IsCancellationRequested)
+            PublishModbusSnapshot();
+            await using var modbusService = new BatteryModbusService(
+                _options.ModbusPort,
+                _options.ModbusUnitId,
+                GetModbusSnapshot,
+                setpoint => commands.Writer.TryWrite($"setpoint {setpoint.ToString(CultureInfo.InvariantCulture)}"),
+                () => commands.Writer.TryWrite("reset"));
+            await modbusService.StartAsync(cancellationToken).ConfigureAwait(false);
+            Console.WriteLine($"Battery Modbus TCP server listening on port {_options.ModbusPort}, unit {_options.ModbusUnitId}.");
+
+            Task? connectionTask = _simulationMasterClient?.ConnectWithRetryAsync(cancellationToken);
+            Task<SimulationMessage?>? masterMessageTask = null;
+            var lastFallbackTimestamp = Stopwatch.GetTimestamp();
+            var fallbackElapsed = TimeSpan.Zero;
+            if (_simulationMasterClient is not null)
+                _masterEnvironment = await _simulationMasterClient.RequestEnvironmentAsync(cancellationToken).ConfigureAwait(false);
+
+            var masterStatus = _simulationMasterClient is null ? "FALLBACK (NO MASTER)" : "CONNECTING";
+            _masterControlsPause = false;
+            var lastRenderTimestamp = Stopwatch.GetTimestamp();
+
+            using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(100));
+            var timerTask = timer.WaitForNextTickAsync(cancellationToken).AsTask();
+            RenderDashboard(simulatedTime, elapsed, _notice, masterStatus);
+
+            while (!cancellationToken.IsCancellationRequested && !_quit)
             {
-                ProcessPendingCommands(commands.Reader);
-                if (_stepSizeChanged)
+                var waitTasks = new List<Task> { timerTask };
+                if (masterMessageTask is not null)
+                    waitTasks.Add(masterMessageTask);
+                if (connectionTask is not null)
+                    waitTasks.Add(connectionTask);
+
+                var completed = await Task.WhenAny(waitTasks).ConfigureAwait(false);
+
+                if (connectionTask is not null && completed == connectionTask)
                 {
-                    realTimeAccumulator = TimeSpan.Zero;
-                    _stepSizeChanged = false;
+                    await connectionTask.ConfigureAwait(false);
+                    connectionTask = null;
+                    masterStatus = "CONNECTED";
+                    _masterControlsPause = true;
+                    await _simulationMasterClient!.SendStateAsync(CreateBatteryState(), cancellationToken).ConfigureAwait(false);
+                    masterMessageTask = _simulationMasterClient.WaitForNextMessageAsync(cancellationToken);
+                    continue;
                 }
-                if (_quit || cancellationToken.IsCancellationRequested)
-                    break;
 
-                if (!await pollTimer.WaitForNextTickAsync(cancellationToken))
-                    break;
-                var now = Stopwatch.GetTimestamp();
-                var wallElapsed = Stopwatch.GetElapsedTime(lastTimestamp, now);
-                lastTimestamp = now;
-                if (!_paused)
-                    realTimeAccumulator += wallElapsed;
-
-                ProcessPendingCommands(commands.Reader);
-                if (_stepSizeChanged)
+                if (masterMessageTask is not null && completed == masterMessageTask)
                 {
-                    realTimeAccumulator = TimeSpan.Zero;
-                    _stepSizeChanged = false;
+                    var message = await masterMessageTask.ConfigureAwait(false);
+                    masterMessageTask = null;
+
+                    if (message is null)
+                    {
+                        masterStatus = "DISCONNECTED - LOCAL FALLBACK";
+                        _masterControlsPause = false;
+                        lastFallbackTimestamp = Stopwatch.GetTimestamp();
+                        fallbackElapsed = TimeSpan.Zero;
+                        if (connectionTask is null && _simulationMasterClient is not null)
+                            connectionTask = _simulationMasterClient.ConnectWithRetryAsync(cancellationToken);
+                    }
+                    else
+                    {
+                        await ProcessMasterMessageAsync(message, logger, cancellationToken).ConfigureAwait(false);
+                        simulatedTime = _currentSimulationTime;
+                        elapsed = simulatedTime - _options.StartTime;
+                        masterStatus = message.Type == SimulationMessageTypes.Environment
+                            ? (message.IsRunning ? "RUNNING" : "PAUSED")
+                            : "RUNNING";
+                        if (_simulationMasterClient!.IsConnected)
+                            masterMessageTask = _simulationMasterClient.WaitForNextMessageAsync(cancellationToken);
+                        else
+                        {
+                            masterStatus = "DISCONNECTED - LOCAL FALLBACK";
+                            _masterControlsPause = false;
+                            lastFallbackTimestamp = Stopwatch.GetTimestamp();
+                            fallbackElapsed = TimeSpan.Zero;
+                            if (connectionTask is null)
+                                connectionTask = _simulationMasterClient.ConnectWithRetryAsync(cancellationToken);
+                        }
+                    }
                 }
-                if (_quit || cancellationToken.IsCancellationRequested)
-                    break;
 
-                var stepped = false;
-                while (!_paused && elapsed < _options.Duration)
+                if (completed == timerTask)
                 {
-                    if (realTimeAccumulator < _options.RealTimeStepInterval)
+                    if (!await timerTask.ConfigureAwait(false))
                         break;
 
-                    var step = TimeSpan.FromTicks(Math.Min(_options.StepSize.Ticks, (_options.Duration - elapsed).Ticks));
-                    var stepTimestamp = _options.StartTime + elapsed;
-                    _currentSimulationTime = stepTimestamp;
-                    UpdateAutoScenario(stepTimestamp);
-                    _battery.Advance(GetRequestedBatteryPowerKW(), step);
-                    elapsed += step;
-                    realTimeAccumulator -= _options.RealTimeStepInterval;
-                    simulatedTime = _options.StartTime + elapsed;
-                    _currentSimulationTime = simulatedTime;
-                    _history.RecordStateOfCharge(simulatedTime, _battery.StateOfChargePercent);
-                    meterReadings = await ReadMetersAsync(simulatedTime, cancellationToken);
-                    PublishMeterReadings(meterReadings);
-                    await logger.WriteAsync(simulatedTime, _battery, meterReadings, cancellationToken);
-                    stepped = true;
-                }
+                    ProcessPendingCommands(commands.Reader, _masterControlsPause);
+                    PublishModbusSnapshot();
+                    var now = Stopwatch.GetTimestamp();
 
-                var renderIntervalElapsed = Stopwatch.GetElapsedTime(lastRenderTimestamp, now);
-                if (stepped || (!Console.IsOutputRedirected && renderIntervalElapsed >= TimeSpan.FromMilliseconds(100)))
-                {
-                    simulatedTime = _options.StartTime + elapsed;
-                    RenderDashboard(simulatedTime, elapsed, _notice);
-                    lastRenderTimestamp = now;
+                    if (_simulationMasterClient is null || !_simulationMasterClient.IsConnected)
+                    {
+                        fallbackElapsed += Stopwatch.GetElapsedTime(lastFallbackTimestamp, now);
+                        lastFallbackTimestamp = now;
+                        _masterEnvironment ??= new SimulationEnvironment(
+                            _currentSimulationTime,
+                            0,
+                            true,
+                            TimeSpan.FromSeconds(1));
+                        if (_paused)
+                        {
+                            fallbackElapsed = TimeSpan.Zero;
+                        }
+                        else
+                        {
+                            while (fallbackElapsed >= _options.RealTimeStepInterval)
+                            {
+                                fallbackElapsed -= _options.RealTimeStepInterval;
+                                simulatedTime = _currentSimulationTime + _masterEnvironment.TimeStep;
+                                await AdvanceBatteryToAsync(simulatedTime, logger, cancellationToken).ConfigureAwait(false);
+                                elapsed = simulatedTime - _options.StartTime;
+                            }
+                        }
+                    }
+
+                    if (Stopwatch.GetElapsedTime(lastRenderTimestamp, now) >= TimeSpan.FromSeconds(1))
+                    {
+                        RenderDashboard(simulatedTime, elapsed, _notice, masterStatus);
+                        lastRenderTimestamp = now;
+                    }
+
+                    timerTask = timer.WaitForNextTickAsync(cancellationToken).AsTask();
                 }
             }
 
-            simulatedTime = _options.StartTime + elapsed;
             _dashboard.Render(simulatedTime, elapsed, _options.Duration, _mode, _battery,
                 GetTargetPower(), _options.StepSize, _options.RealTimeStepInterval, _deviceLoads.Count,
-                TotalDeviceDemandKW, _paused, _history.GetRollingSummary(), _notice);
+                TotalDeviceDemandKW, _paused, _history.GetRollingSummary(), _notice, masterStatus);
         }
         finally
         {
@@ -179,11 +248,27 @@ public sealed class BatterySimulator
     private void RenderDashboard(
         DateTime simulatedTime,
         TimeSpan elapsed,
-        string? notice)
+        string? notice,
+        string? masterStatus = null)
     {
         _dashboard.Render(simulatedTime, elapsed, _options.Duration, _mode, _battery,
             GetTargetPower(), _options.StepSize, _options.RealTimeStepInterval, _deviceLoads.Count,
-            TotalDeviceDemandKW, _paused, _history.GetRollingSummary(), notice);
+            TotalDeviceDemandKW, _paused, _history.GetRollingSummary(), notice, masterStatus);
+    }
+
+    private string GetMasterStatusText()
+    {
+        if (_simulationMasterClient is null)
+        {
+            return "OFFLINE";
+        }
+
+        if (!_simulationMasterClient.IsConnected)
+        {
+            return "WAITING";
+        }
+
+        return "CONNECTED";
     }
 
     private double TotalDeviceDemandKW => _deviceLoads.Sum(device => device.PowerDemandKW);
@@ -335,7 +420,7 @@ public sealed class BatterySimulator
 
     private double GetInflowPowerKW() => Math.Max(0, GetTargetPower());
 
-    private void ProcessPendingCommands(ChannelReader<string> reader)
+    private void ProcessPendingCommands(ChannelReader<string> reader, bool masterControlsPause)
     {
         while (reader.TryRead(out var line))
         {
@@ -440,6 +525,102 @@ public sealed class BatterySimulator
                 _notice = exception.Message;
             }
         }
+    }
+
+    private async Task ProcessMasterMessageAsync(SimulationMessage message, CsvSimulationLogger logger, CancellationToken cancellationToken)
+    {
+        if (message.Type == SimulationMessageTypes.Environment)
+        {
+            _masterEnvironment = new SimulationEnvironment(
+                message.VirtualTime,
+                message.Sequence,
+                message.IsRunning,
+                message.TimeStep);
+            _paused = !message.IsRunning;
+            if (message.VirtualTime != default && !_hasProcessedMasterStep)
+            {
+                _currentSimulationTime = message.VirtualTime;
+                PublishModbusSnapshot();
+            }
+
+            return;
+        }
+
+        if (message.Type != SimulationMessageTypes.TimeStep)
+            return;
+
+        _paused = !message.IsRunning;
+        if (message.IsRunning && message.VirtualTime > _currentSimulationTime)
+        {
+            await AdvanceBatteryToAsync(message.VirtualTime, logger, cancellationToken).ConfigureAwait(false);
+            _hasProcessedMasterStep = true;
+        }
+
+        _masterEnvironment = new SimulationEnvironment(
+            message.VirtualTime,
+            message.Sequence,
+            message.IsRunning,
+            message.TimeStep);
+
+        PublishModbusSnapshot();
+        await _simulationMasterClient!.SendStateAsync(CreateBatteryState(message.Sequence), cancellationToken).ConfigureAwait(false);
+        await _simulationMasterClient.SendAcknowledgementAsync(message.Sequence, _currentSimulationTime, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task AdvanceBatteryToAsync(DateTime targetVirtualTime, CsvSimulationLogger logger, CancellationToken cancellationToken)
+    {
+        var delta = targetVirtualTime - _currentSimulationTime;
+        if (delta <= TimeSpan.Zero)
+            return;
+
+        UpdateAutoScenario(_currentSimulationTime);
+        _battery.Advance(GetRequestedBatteryPowerKW(), delta);
+        _currentSimulationTime = targetVirtualTime;
+        var meterReadings = await ReadMetersAsync(_currentSimulationTime, cancellationToken);
+        PublishMeterReadings(meterReadings);
+        _history.RecordStateOfCharge(_currentSimulationTime, _battery.StateOfChargePercent);
+        await logger.WriteAsync(_currentSimulationTime, _battery, meterReadings, cancellationToken);
+        PublishModbusSnapshot();
+    }
+
+    private void PublishModbusSnapshot()
+    {
+        var snapshot = new BatteryModbusSnapshot(
+            _currentSimulationTime,
+            Interlocked.Increment(ref _modbusSequence),
+            _battery.State,
+            true,
+            _battery.CurrentPowerKW,
+            _battery.ChargedEnergyKWh + _battery.DischargedEnergyKWh,
+            _battery.StateOfChargePercent,
+            400d,
+            _mode == ControlMode.Manual ? _manualTargetPowerKW : GetTargetPower());
+
+        Volatile.Write(ref _modbusSnapshot, snapshot);
+    }
+
+    private BatteryModbusSnapshot GetModbusSnapshot()
+    {
+        return Volatile.Read(ref _modbusSnapshot)
+            ?? throw new InvalidOperationException("Battery Modbus snapshot has not been initialized.");
+    }
+
+    private SimulationMessage CreateBatteryState(long sequence = 0)
+    {
+        return new SimulationMessage
+        {
+            Type = SimulationMessageTypes.State,
+            StationId = Environment.MachineName + "-Battery",
+            Sequence = sequence,
+            VirtualTime = _currentSimulationTime,
+            TimeStep = _simulationMasterClient?.LastKnownTimeStep ?? TimeSpan.FromSeconds(1),
+            IsRunning = !_paused,
+            IsOn = true,
+            ActivePowerKW = _battery.CurrentPowerKW,
+            CumulativeEnergyKWh = _battery.ChargedEnergyKWh - _battery.DischargedEnergyKWh,
+            StateOfChargePercent = _battery.StateOfChargePercent,
+            SetpointKW = GetTargetPower()
+        };
     }
 
     private void AdjustPowerTarget(double adjustmentKW)
