@@ -2,6 +2,10 @@ using System;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
+using Spectre.Console;
+using TeamConsoleShared;
+using TeamConsoleShared.Components;
+using TeamConsoleShared.Layout;
 
 namespace SimulationsMaster;
 
@@ -12,6 +16,8 @@ public static class Program
 
     public static async Task Main(string[] args)
     {
+        SimulationTheme.InitializeConsole();
+
         var cancellationTokenSource = new CancellationTokenSource();
         Console.CancelKeyPress += (_, eventArgs) =>
         {
@@ -35,7 +41,7 @@ public static class Program
 
                 RenderDashboard(engine, server, port);
 
-                if (Console.KeyAvailable)
+                if (!Console.IsInputRedirected && Console.KeyAvailable)
                 {
                     var key = Console.ReadKey(intercept: true);
                     HandleKey(engine, key.Key, cancellationTokenSource);
@@ -52,7 +58,7 @@ public static class Program
         }
         catch (Exception exception) when (exception is InvalidOperationException or System.Net.Sockets.SocketException)
         {
-            Console.Error.WriteLine($"Simulation Master server error: {exception.Message}");
+            AnsiConsole.MarkupLine($"[bold red]Simulation Master server error:[/] {Markup.Escape(exception.Message)}");
         }
         finally
         {
@@ -63,13 +69,12 @@ public static class Program
             }
             catch (Exception exception) when (exception is InvalidOperationException or System.Net.Sockets.SocketException)
             {
-                Console.Error.WriteLine($"Simulation Master shutdown warning: {exception.Message}");
+                AnsiConsole.MarkupLine($"[yellow]Simulation Master shutdown warning:[/] {Markup.Escape(exception.Message)}");
             }
 
             if (!serverTask.IsFaulted && !serverTask.IsCanceled)
                 await serverTask.ConfigureAwait(false);
-            Console.WriteLine();
-            Console.WriteLine("Simulations-Master stopped.");
+            AnsiConsole.MarkupLine("\n[bold yellow]Simulations-Master gestoppt.[/]");
         }
     }
 
@@ -127,30 +132,66 @@ public static class Program
 
     private static void RenderDashboard(SimulationEngine engine, TcpSimulationServer server, int port)
     {
-        Console.Clear();
-        Console.WriteLine("SIMULATIONS-MASTER");
-        Console.WriteLine("══════════════════════════════════════════════════════════════");
-        Console.WriteLine("STATUS");
-
         var snapshot = engine.GetStatusSnapshot();
-        Console.WriteLine($"  Running            : {(snapshot.IsRunning ? "YES" : "NO")}");
-        Console.WriteLine($"  Virtual Time       : {snapshot.CurrentVirtualTime:yyyy-MM-dd HH:mm:ss.fff}");
-        Console.WriteLine($"  Start Virtual Time : {snapshot.StartVirtualTime:yyyy-MM-dd HH:mm:ss.fff}");
-        Console.WriteLine($"  Time Step / Tick   : {FormatTimeStep(snapshot.TimeStep)}");
-        Console.WriteLine($"  Connected Clients  : {server.ConnectedClientCount}");
 
-        Console.WriteLine();
-        Console.WriteLine("CONTROLS");
-        Console.WriteLine("  P   Pause");
-        Console.WriteLine("  R   Resume");
-        Console.WriteLine("  S   Start");
-        Console.WriteLine("  +   Increase time step");
-        Console.WriteLine("  -   Decrease time step");
-        Console.WriteLine("  Q   Quit");
-        Console.WriteLine();
-        Console.WriteLine("  Time-step ladder: 1s, 10s, 1m, 15m, 1h, 2h, 12h, 24h, 7d");
-        Console.WriteLine();
-        Console.WriteLine($"Port: {port}");
+        if (Console.IsOutputRedirected || Console.IsErrorRedirected)
+        {
+            Console.WriteLine($"[MASTER] Time: {snapshot.CurrentVirtualTime:yyyy-MM-dd HH:mm:ss} | Step: {FormatTimeStep(snapshot.TimeStep)} | Clients: {server.ConnectedClientCount} | Running: {snapshot.IsRunning}");
+            return;
+        }
+
+        var dashboard = new SimulationDashboard()
+            .WithHeader(h =>
+            {
+                h.Title = "⏱️ Energy Twin: Simulations-Master";
+                h.Subtitle = "Zentraler Taktgeber & Zeitsynchronisation";
+                h.ModbusPort = port;
+                h.SimulatedTime = snapshot.CurrentVirtualTime;
+                h.SpeedDescription = $"{FormatTimeStep(snapshot.TimeStep)} / Tick";
+                h.ModeBadgeMarkup = snapshot.IsRunning ? StatusBadge.Running("AKTIV") : StatusBadge.Paused("PAUSIERT");
+                h.StatusBadgeMarkup = server.ConnectedClientCount > 0
+                    ? StatusBadge.Custom($"{server.ConnectedClientCount} CLIENTS", "black", "chartreuse3")
+                    : StatusBadge.Stopped("0 CLIENTS");
+                h.AccentColor = SimulationTheme.MasterAccent;
+            });
+
+        if (!snapshot.IsRunning)
+        {
+            dashboard.WithAlert("SIMULATION PAUSIERT: Virtueller Takt angehalten. Drücken Sie [R] oder [S] zum Fortsetzen.", "bold black on yellow");
+        }
+
+        var statusMetrics = new List<MetricItem>
+        {
+            MetricItem.Text("Virtuelle Zeit", snapshot.CurrentVirtualTime.ToString("yyyy-MM-dd HH:mm:ss.fff"), "bold gold1", "🕐"),
+            MetricItem.Text("Startzeit", snapshot.StartVirtualTime.ToString("yyyy-MM-dd HH:mm:ss"), "bold white", "🏁"),
+            MetricItem.Text("Takt-Schrittweite", FormatTimeStep(snapshot.TimeStep), "bold cyan", "⏱️"),
+            MetricItem.Text("Taktgeber-Zustand", snapshot.IsRunning ? "Läuft (Takt aktiv)" : "Angehalten (Pausiert)", snapshot.IsRunning ? "bold green3" : "bold yellow", "⚙️")
+        };
+
+        var networkMetrics = new List<MetricItem>
+        {
+            MetricItem.Number("TCP Sync Server Port", port, "", "bold cyan", "0", "🔌"),
+            MetricItem.Number("Verbundene Simulatoren", server.ConnectedClientCount, "Knoten", server.ConnectedClientCount > 0 ? "bold green3" : "dim grey", "0", "🔗"),
+            MetricItem.Text("Stufen-Ladder", "1s, 10s, 1m, 15m, 1h, 2h, 12h, 24h, 7d", "grey74", "📊"),
+            MetricItem.Text("Protokoll-Modus", "TCP Text-Streams (TIME, STEP)", "dim grey", "📡")
+        };
+
+        dashboard.AddTwoColumns(
+            ("Zeitsynchronisation & Taktung", MetricGrid.Create(statusMetrics, 1)),
+            ("Netzwerk & Verbundene Clients", MetricGrid.Create(networkMetrics, 1))
+        );
+
+        dashboard.WithKeyBindings(
+            ("P", "Pause"),
+            ("R", "Resume"),
+            ("S", "Start"),
+            ("+", "Schritt +"),
+            ("-", "Schritt -"),
+            ("Q", "Beenden")
+        );
+
+        SimulationTheme.PrepareFrame();
+        AnsiConsole.Write(dashboard.Build());
     }
 
     private static int GetPortFromEnvironment(string variableName, int defaultPort)
@@ -221,4 +262,3 @@ public static class Program
         return timeStep.ToString("c", CultureInfo.InvariantCulture);
     }
 }
-

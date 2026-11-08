@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using TeamConsoleShared;
 
 namespace Dual_Port_Charger
 {
@@ -8,6 +9,8 @@ namespace Dual_Port_Charger
     {
         static async Task Main(string[] args)
         {
+            SimulationTheme.InitializeConsole();
+
             var timeStep = TimeSpan.FromMinutes(1); 
             var logFilePath = Path.Combine(Directory.GetCurrentDirectory(), "logs", "simulation.csv");
             

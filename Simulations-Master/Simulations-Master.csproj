@@ -8,5 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\TeamShared\TeamShared.csproj" />
+    <ProjectReference Include="..\TeamConsoleShared\TeamConsoleShared.csproj" />
   </ItemGroup>
 </Project>

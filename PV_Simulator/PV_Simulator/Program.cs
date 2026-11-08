@@ -1,18 +1,24 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
-using System.Text;
 using PV_Simulator.ConsoleApp;
 using PV_Simulator.Domain;
 using PV_Simulator.Simulation;
+using Spectre.Console;
+using TeamConsoleShared;
 
-Console.OutputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+SimulationTheme.InitializeConsole();
 
 var input = new ConsoleInput();
 
 try
 {
-    Console.WriteLine("Konfiguration des PV-Digitalzwillings");
+    AnsiConsole.Write(
+        new Panel(new Markup("[bold gold1]☀️ PV-Digitalzwilling & Solarsimulator[/]\n[grey62]Digitaler Zwilling zur Erzeugung von Solarstrom[/]"))
+            .Border(BoxBorder.Rounded)
+            .BorderStyle(new Style(foreground: SimulationTheme.PvAccent))
+            .Expand());
+
     var configuration = input.ReadConfiguration();
     var location = configuration.Location;
     var array = configuration.Array;
@@ -30,11 +36,11 @@ try
         "exports",
         $"pv-simulation-{safeDeviceId}-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.csv");
     await using var csvLogger = new CsvSimulationLogger(csvPath, array, inverter);
-    Console.WriteLine($"CSV-Protokoll: {csvLogger.FilePath}");
+    AnsiConsole.MarkupLine($"[grey62]CSV-Protokoll:[/] [cyan]{Markup.Escape(csvLogger.FilePath)}[/]");
     await runner.RunAsync(engine, location, array, inverter, settings, csvLogger);
-    Console.WriteLine("Simulation abgeschlossen.");
+    AnsiConsole.MarkupLine("[bold green]Simulation abgeschlossen.[/]");
 }
 catch (Exception exception) when (exception is IOException or InvalidDataException or InvalidOperationException or ArgumentException)
 {
-    Console.Error.WriteLine($"Simulation konnte nicht gestartet werden: {exception.Message}");
+    AnsiConsole.MarkupLine($"[bold red]Simulation konnte nicht gestartet werden:[/] {Markup.Escape(exception.Message)}");
 }

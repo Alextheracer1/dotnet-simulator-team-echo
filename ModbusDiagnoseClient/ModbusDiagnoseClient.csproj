@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TeamShared\TeamShared.csproj" />
+    <ProjectReference Include="..\TeamConsoleShared\TeamConsoleShared.csproj" />
     <Reference Include="EasyModbus">
       <HintPath>..\EasyModbus.dll</HintPath>
     </Reference>

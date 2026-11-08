@@ -54,7 +54,7 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
         double speedMultiplier,
         CancellationToken cancellationToken)
     {
-        while (Console.KeyAvailable)
+        while (!Console.IsInputRedirected && Console.KeyAvailable)
         {
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.P)

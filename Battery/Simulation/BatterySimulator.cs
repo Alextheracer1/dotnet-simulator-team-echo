@@ -65,7 +65,7 @@ public sealed class BatterySimulator
             new DeviceDemandMeter(() => TotalDeviceDemandKW),
             new NetPowerMeter(GetInflowPowerKW, () => TotalDeviceDemandKW)
         ];
-        _dashboard = new ConsoleDashboard();
+        _dashboard = new ConsoleDashboard(options.ModbusPort, options.ModbusUnitId);
     }
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
