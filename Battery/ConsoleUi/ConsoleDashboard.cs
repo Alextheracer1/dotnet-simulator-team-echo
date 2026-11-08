@@ -18,7 +18,7 @@ public sealed class ConsoleDashboard
     private readonly int _modbusPort;
     private readonly byte _modbusUnitId;
 
-    public ConsoleDashboard(int modbusPort = 1503, byte modbusUnitId = 1)
+    public ConsoleDashboard(int modbusPort = SimulationOptions.DefaultModbusPort, byte modbusUnitId = 1)
     {
         _modbusPort = modbusPort;
         _modbusUnitId = modbusUnitId;
@@ -90,10 +90,8 @@ public sealed class ConsoleDashboard
     {
         command = key.Key switch
         {
-            ConsoleKey.UpArrow => "power-up",
-            ConsoleKey.DownArrow => "power-down",
-            ConsoleKey.Add or ConsoleKey.OemPlus => "step-up",
-            ConsoleKey.Subtract or ConsoleKey.OemMinus => "step-down",
+            ConsoleKey.Add or ConsoleKey.OemPlus => "power-up",
+            ConsoleKey.Subtract or ConsoleKey.OemMinus => "power-down",
             ConsoleKey.A => "auto",
             ConsoleKey.M => "manual",
             ConsoleKey.D => "discharge",
@@ -101,7 +99,7 @@ public sealed class ConsoleDashboard
             ConsoleKey.I => "idle",
             ConsoleKey.P => "toggle-pause",
             ConsoleKey.Q => "quit",
-            ConsoleKey.C => "charge 20",
+            ConsoleKey.C => "charge 2.5",
             ConsoleKey.F => "fault",
             ConsoleKey.R => "reset",
             ConsoleKey.H => "help",
@@ -122,8 +120,6 @@ public sealed class ConsoleDashboard
         ControlMode mode,
         BatteryModel battery,
         double targetPowerKW,
-        TimeSpan stepSize,
-        TimeSpan realTimeStepInterval,
         int deviceCount,
         double totalDeviceDemandKW,
         bool paused,
@@ -151,7 +147,6 @@ public sealed class ConsoleDashboard
                 h.ModbusPort = _modbusPort;
                 h.ModbusUnitId = _modbusUnitId;
                 h.SimulatedTime = simulatedTime;
-                h.SpeedDescription = $"{stepSize.TotalMinutes:g} min Sim = {realTimeStepInterval.TotalSeconds:g} s Real";
                 h.ModeBadgeMarkup = StatusBadge.Mode(mode == ControlMode.Auto);
                 h.StatusBadgeMarkup = battery.State == BatteryState.Fault
                     ? StatusBadge.Fault("STÖRUNG")
@@ -168,16 +163,16 @@ public sealed class ConsoleDashboard
             dashboard.WithAlert($"HINWEIS: {notice}", "bold black on yellow");
         }
 
-        var maxChargeKw = battery.MaximumChargePowerKW > 0 ? battery.MaximumChargePowerKW : 50.0;
-        var maxDischargeKw = battery.MaximumDischargePowerKW > 0 ? battery.MaximumDischargePowerKW : 50.0;
+        var maxChargeKw = battery.MaximumChargePowerKW > 0 ? battery.MaximumChargePowerKW : BatteryModel.HardwareMaximumChargePowerKW;
+        var maxDischargeKw = battery.MaximumDischargePowerKW > 0 ? battery.MaximumDischargePowerKW : BatteryModel.HardwareMaximumDischargePowerKW;
         var maxDisplayPower = Math.Max(maxChargeKw, maxDischargeKw);
 
         // Column 1: Battery storage and state
         var batteryMetrics = new List<MetricItem>
         {
-            MetricItem.MarkupValue("Ladezustand", GaugeBar.StateOfCharge(battery.StateOfChargePercent, 10), icon: "🔋"),
-            MetricItem.Text("Kapazität", $"{battery.StateOfChargeKWh:F1} / {battery.CapacityKWh:F1} kWh", "bold white", "📦"),
-            MetricItem.MarkupValue("Leistung", GaugeBar.Power(Math.Abs(battery.CurrentPowerKW), maxDisplayPower, "kW", 8, battery.CurrentPowerKW >= 0 ? "Laden" : "Entladen", compact: true), icon: "⚡"),
+            MetricItem.MarkupValue("Ladezustand (SOC)", GaugeBar.StateOfCharge(battery.StateOfChargePercent, 12), icon: "🔋"),
+            MetricItem.Text("Kapazität", $"{battery.StateOfChargeKWh:F3} / {battery.CapacityKWh:F3} kWh", "bold white", "📦"),
+            MetricItem.MarkupValue("Batterieleistung", GaugeBar.Power(Math.Abs(battery.CurrentPowerKW), maxDisplayPower, "kW", 12, battery.CurrentPowerKW >= 0 ? "Laden" : "Entladen"), icon: "⚡"),
             MetricItem.Text("Betriebsstatus", battery.State.ToString(), battery.State == BatteryState.Fault ? "bold red" : "bold green3", "⚙️"),
             MetricItem.Text("Durchsatz", $"+{battery.ChargedEnergyKWh:F1} / -{battery.DischargedEnergyKWh:F1} kWh", "bold white", "🔄")
         };
@@ -215,12 +210,11 @@ public sealed class ConsoleDashboard
         dashboard.WithKeyBindings(
             ("A/M", "Auto/Manuell"),
             ("D", "Entladen"),
-            ("C", "Laden 20kW"),
+            ("C", "Laden 2.5kW"),
             ("I", "Leerlauf"),
             ("X", "Trennen"),
             ("P", "Pause"),
-            ("↑/↓", "Leistung"),
-            ("+/-", "Schritt"),
+            ("+/-", "Leistung"),
             ("F/R", "Fehler/Reset"),
             ("Q", "Beenden")
         );

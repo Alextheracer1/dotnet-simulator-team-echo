@@ -50,8 +50,38 @@ try
         $"pv-simulation-{safeDeviceId}-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.csv");
     await using var csvLogger = new CsvSimulationLogger(csvPath, array, inverter);
     AnsiConsole.MarkupLine($"[grey62]CSV-Protokoll:[/] [cyan]{Markup.Escape(csvLogger.FilePath)}[/]");
-    await runner.RunAsync(engine, location, array, inverter, settings, csvLogger, masterClient);
+    var masterHost = Environment.GetEnvironmentVariable("SIMULATION_MASTER_HOST") ?? "127.0.0.1";
+    var masterPortText = Environment.GetEnvironmentVariable("SIMULATION_MASTER_PORT");
+    var masterPort = string.IsNullOrWhiteSpace(masterPortText)
+        ? 1510
+        : int.TryParse(masterPortText, out var parsedPort) && parsedPort is >= 1 and <= 65535
+            ? parsedPort
+            : throw new InvalidOperationException("SIMULATION_MASTER_PORT must contain a TCP port from 1 through 65535.");
+    using var cancellationTokenSource = new CancellationTokenSource();
+    ConsoleCancelEventHandler cancelHandler = (_, eventArgs) =>
+    {
+        eventArgs.Cancel = true;
+        cancellationTokenSource.Cancel();
+    };
+    Console.CancelKeyPress += cancelHandler;
+    await using var simulationMaster = new TeamShared.SimulationMasterClient(
+        masterHost,
+        masterPort,
+        $"{Environment.MachineName}-{array.DeviceId}");
+    try
+    {
+        await runner.RunAsync(engine, location, array, inverter, settings, csvLogger, cancellationTokenSource.Token, simulationMaster);
+    }
+    finally
+    {
+        cancellationTokenSource.Cancel();
+        Console.CancelKeyPress -= cancelHandler;
+    }
     AnsiConsole.MarkupLine("[bold green]Simulation abgeschlossen.[/]");
+}
+catch (OperationCanceledException)
+{
+    AnsiConsole.MarkupLine("[yellow]Simulation abgebrochen.[/]");
 }
 catch (Exception exception) when (exception is IOException or InvalidDataException or InvalidOperationException or ArgumentException)
 {

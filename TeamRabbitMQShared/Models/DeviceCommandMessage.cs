@@ -25,7 +25,7 @@ public class DeviceCommandMessage
     public string CommandType { get; set; } = string.Empty;
 
     /// <summary>
-    /// Numeric payload value (e.g. power limit in Watts, port ID to toggle, etc.)
+    /// Numeric payload value (power values are signed watts; other commands may use an ID or flag).
     /// </summary>
     [JsonPropertyName("value")]
     public double Value { get; set; }
@@ -39,10 +39,13 @@ public class DeviceCommandMessage
     [JsonPropertyName("parameters")]
     public Dictionary<string, string> Parameters { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public static DeviceCommandMessage CreateSetPowerLimit(string deviceId, double powerWatts) => new()
+    public static DeviceCommandMessage CreateSetPowerLimit(string deviceId, double powerWatts) =>
+        CreateSetPowerLimit("charger", deviceId, powerWatts);
+
+    public static DeviceCommandMessage CreateSetPowerLimit(string deviceType, string deviceId, double powerWatts) => new()
     {
         TargetDeviceId = deviceId,
-        TargetDeviceType = "charger",
+        TargetDeviceType = deviceType,
         CommandType = "SetPowerLimit",
         Value = powerWatts
     };

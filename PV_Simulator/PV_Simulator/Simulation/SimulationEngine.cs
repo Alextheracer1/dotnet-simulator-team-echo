@@ -42,9 +42,12 @@ public sealed class SimulationEngine
     }
 
     public bool ToggleManualFault()
+        => SetManualFault(!_manualFaultActive);
+
+    public bool SetManualFault(bool active)
     {
-        _manualFaultActive = !_manualFaultActive;
-        if (_manualFaultActive)
+        _manualFaultActive = active;
+        if (active)
         {
             _inverterStatus = InverterStatus.Faulted;
         }
@@ -58,8 +61,11 @@ public sealed class SimulationEngine
     }
 
     public bool ToggleSnowCover()
+        => SetSnowCover(!_snowCoverActive);
+
+    public bool SetSnowCover(bool active)
     {
-        _snowCoverActive = !_snowCoverActive;
+        _snowCoverActive = active;
         return _snowCoverActive;
     }
 
@@ -82,10 +88,10 @@ public sealed class SimulationEngine
 
         var timeStep = Min(_settings.TimeStep, _settings.Duration - elapsed);
         var simulatedAt = _settings.StartTime + elapsed + timeStep;
-        return AdvanceTo(simulatedAt, timeStep);
+        return Advance(simulatedAt, timeStep);
     }
 
-    public SimulationSnapshot AdvanceTo(DateTimeOffset simulatedAt, TimeSpan timeStep)
+    public SimulationSnapshot Advance(DateTimeOffset simulatedAt, TimeSpan timeStep)
     {
         if (timeStep <= TimeSpan.Zero)
         {

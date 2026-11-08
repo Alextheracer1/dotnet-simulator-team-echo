@@ -38,6 +38,7 @@ public class DeviceTelemetryMessage
     public short ErrorCode { get; set; }
 
     [JsonPropertyName("activePowerWatts")]
+    /// <summary>Signed active power in watts; negative values represent reverse power flow.</summary>
     public double ActivePowerWatts { get; set; }
 
     [JsonPropertyName("activePowerKw")]

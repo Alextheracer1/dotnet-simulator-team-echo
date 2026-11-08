@@ -19,6 +19,10 @@ class Program
             tests.DeviceCommandMessage_FactoryMethods_ProduceExpectedProperties();
             Console.WriteLine("PASSED ✅");
 
+            Console.Write("[TEST] RabbitMqPowerValues_PreserveNegativeValues... ");
+            tests.RabbitMqPowerValues_PreserveNegativeValues();
+            Console.WriteLine("PASSED ✅");
+
             Console.Write("[TEST] RabbitMqConfiguration_RoutingKeyBuilders... ");
             tests.RabbitMqConfiguration_RoutingKeyBuilders_FormatTopicsCorrectly();
             Console.WriteLine("PASSED ✅");
@@ -27,7 +31,11 @@ class Program
             tests.ModbusTelemetryMapper_FromRegisters_MapsStandardAndDeviceSpecificRegisters();
             Console.WriteLine("PASSED ✅");
 
-            Console.WriteLine("\nAll 4/4 Unit Tests Passed Successfully! 🎉");
+            Console.Write("[TEST] ModbusTelemetryMapper_FromRegisters_PreservesNegativePower... ");
+            tests.ModbusTelemetryMapper_FromRegisters_PreservesNegativePower();
+            Console.WriteLine("PASSED ✅");
+
+            Console.WriteLine("\nAll 6/6 Unit Tests Passed Successfully! 🎉");
             return 0;
         }
         catch (Exception ex)

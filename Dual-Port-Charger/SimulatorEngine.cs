@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using TeamShared;
+using TeamShared.Simulation;
 using EasyModbus;
 using TeamRabbitMQShared.Configuration;
 using TeamRabbitMQShared.Consumer;
@@ -16,7 +19,10 @@ namespace Dual_Port_Charger
         private readonly Device _device;
         private readonly TimeSpan _timeStep;
         private readonly string _logFilePath;
+        private readonly SimulationMasterClient? _simulationMasterClient;
         private bool _isRunning = true;
+        private bool _locallyPaused;
+        private bool _hasAdvanced;
         
         private readonly FieldDeviceModbusServer _modbusServer;
         private readonly IRabbitMqPublisher _rabbitPublisher;
@@ -29,11 +35,16 @@ namespace Dual_Port_Charger
         public bool RabbitMqConnected => _rabbitPublisher.IsConnected;
         public long RabbitMqPublishedCount => _rabbitPublisher.PublishedCount;
 
-        public SimulatorEngine(Device device, TimeSpan timeStep, string logFilePath)
+        public SimulatorEngine(
+            Device device,
+            TimeSpan timeStep,
+            string logFilePath,
+            SimulationMasterClient? simulationMasterClient = null)
         {
             _device = device;
             _timeStep = timeStep;
             _logFilePath = logFilePath;
+            _simulationMasterClient = simulationMasterClient;
             _modbusServer = new FieldDeviceModbusServer(1502, 1);
             
             var rabbitConfig = RabbitMqConfiguration.CreateDefault();
@@ -54,9 +65,10 @@ namespace Dual_Port_Charger
             }
         }
 
-        public async Task StartAsync(Action renderUi)
+        public async Task StartAsync(Action renderUi, CancellationToken cancellationToken = default)
         {
             Console.Clear();
+            var simulationStartTime = SimulatedTime;
             var endTime = SimulatedTime.AddHours(24);
 
             _modbusServer.Start();
@@ -75,33 +87,145 @@ namespace Dual_Port_Charger
 
             try 
             {
-                while (_isRunning && SimulatedTime < endTime)
+                Task? connectionTask = _simulationMasterClient?.ConnectWithRetryAsync(cancellationToken);
+                Task<SimulationMessage?>? masterMessageTask = null;
+                var masterConnected = false;
+                var fallbackAccumulator = TimeSpan.Zero;
+                var lastClockTimestamp = Stopwatch.GetTimestamp();
+                using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(100));
+                var timerTask = timer.WaitForNextTickAsync(cancellationToken).AsTask();
+
+                while (_isRunning && SimulatedTime < endTime && !cancellationToken.IsCancellationRequested)
                 {
+                    var waitTasks = new List<Task> { timerTask };
+                    if (masterMessageTask is not null)
+                        waitTasks.Add(masterMessageTask);
+                    if (connectionTask is not null)
+                        waitTasks.Add(connectionTask);
+
+                    var completed = await Task.WhenAny(waitTasks).ConfigureAwait(false);
+
+                    if (connectionTask is not null && completed == connectionTask)
+                    {
+                        await connectionTask.ConfigureAwait(false);
+                        connectionTask = null;
+                        masterConnected = true;
+                        _simulationMasterClient!.UpdateStationTime(SimulatedTime);
+                        masterMessageTask = _simulationMasterClient.WaitForNextMessageAsync(cancellationToken);
+                        continue;
+                    }
+
+                    if (masterMessageTask is not null && completed == masterMessageTask)
+                    {
+                        var message = await masterMessageTask.ConfigureAwait(false);
+                        masterMessageTask = null;
+                        if (message is null)
+                        {
+                            masterConnected = false;
+                            fallbackAccumulator = TimeSpan.Zero;
+                            lastClockTimestamp = Stopwatch.GetTimestamp();
+                            if (connectionTask is null && _simulationMasterClient is not null)
+                                connectionTask = _simulationMasterClient.ConnectWithRetryAsync(cancellationToken);
+                        }
+                        else
+                        {
+                            if (message.Type == SimulationMessageTypes.Environment && !_hasAdvanced && message.VirtualTime != default)
+                            {
+                                SimulatedTime = message.VirtualTime;
+                                simulationStartTime = SimulatedTime;
+                                endTime = simulationStartTime.AddHours(24);
+                                _simulationMasterClient!.UpdateStationTime(SimulatedTime);
+                            }
+                            else if (message.Type == SimulationMessageTypes.TimeStep)
+                            {
+                                var targetTime = DateTime.SpecifyKind(message.VirtualTime, DateTimeKind.Utc);
+                                var timeStep = targetTime - SimulatedTime;
+                                if (timeStep > TimeSpan.Zero)
+                                {
+                                    SimulatedTime = targetTime;
+                                    await AdvanceAndPublishAsync(timeStep, renderUi).ConfigureAwait(false);
+                                    _hasAdvanced = true;
+                                }
+
+                                _simulationMasterClient!.UpdateStationTime(targetTime);
+                                try
+                                {
+                                    await _simulationMasterClient.SendStateAsync(new SimulationMessage
+                                    {
+                                        VirtualTime = targetTime,
+                                        Sequence = message.Sequence,
+                                        IsOn = !_device.Fault,
+                                        Status = _device.Status,
+                                        ActivePowerKW = (double)(_device.ActivePower / 1000m),
+                                        CumulativeEnergyKWh = (double)(_device.Energy / 1000m)
+                                    }, cancellationToken).ConfigureAwait(false);
+                                    await _simulationMasterClient.SendAcknowledgementAsync(
+                                        message.Sequence,
+                                        targetTime,
+                                        cancellationToken).ConfigureAwait(false);
+                                }
+                                catch (IOException)
+                                {
+                                    masterConnected = false;
+                                    fallbackAccumulator = TimeSpan.Zero;
+                                    lastClockTimestamp = Stopwatch.GetTimestamp();
+                                    if (connectionTask is null)
+                                        connectionTask = _simulationMasterClient.ConnectWithRetryAsync(cancellationToken);
+                                }
+                            }
+
+                            if (_simulationMasterClient!.IsConnected)
+                                masterMessageTask = _simulationMasterClient.WaitForNextMessageAsync(cancellationToken);
+                            else if (masterConnected)
+                            {
+                                masterConnected = false;
+                                fallbackAccumulator = TimeSpan.Zero;
+                                lastClockTimestamp = Stopwatch.GetTimestamp();
+                                if (connectionTask is null)
+                                    connectionTask = _simulationMasterClient.ConnectWithRetryAsync(cancellationToken);
+                            }
+                        }
+                    }
+
+                    if (completed != timerTask)
+                        continue;
+
+                    if (!await timerTask.ConfigureAwait(false))
+                        break;
+
+                    var now = Stopwatch.GetTimestamp();
+                    var wallElapsed = Stopwatch.GetElapsedTime(lastClockTimestamp, now);
+                    lastClockTimestamp = now;
                     while (!Console.IsInputRedirected && Console.KeyAvailable)
                     {
                         var key = Console.ReadKey(true);
-                        await HandleUserInputAsync(key.Key);
+                        await HandleUserInputAsync(key.Key, masterConnected).ConfigureAwait(false);
                     }
 
                     if (_modbusServer.CheckAndClearErrorReset())
-                    {
                         _device.ResetFault();
-                    }
 
                     var setpoint = _modbusServer.ReadSetpoint();
                     if (setpoint > 0)
-                    {
                         _device.SetPowerLimit((decimal)setpoint);
+
+                    if (!masterConnected && !_locallyPaused)
+                    {
+                        fallbackAccumulator += wallElapsed;
+                        while (fallbackAccumulator.TotalMilliseconds >= DelayMs && SimulatedTime < endTime)
+                        {
+                            var stepDuration = _timeStep <= endTime - SimulatedTime
+                                ? _timeStep
+                                : endTime - SimulatedTime;
+                            SimulatedTime += stepDuration;
+                            await AdvanceAndPublishAsync(stepDuration, renderUi).ConfigureAwait(false);
+                            _simulationMasterClient?.UpdateStationTime(SimulatedTime);
+                            _hasAdvanced = true;
+                            fallbackAccumulator -= TimeSpan.FromMilliseconds(DelayMs);
+                        }
                     }
 
-                    SimulatedTime += _timeStep;
-                    UpdateSimulation();
-                    UpdateModbusRegisters();
-                    await PublishRabbitMqTelemetryAsync();
-                    LogData();
-                    renderUi();
-                    
-                    await Task.Delay(DelayMs); 
+                    timerTask = timer.WaitForNextTickAsync(cancellationToken).AsTask();
                 }
             }
             finally 
@@ -113,6 +237,15 @@ namespace Dual_Port_Charger
             
             Console.SetCursorPosition(0, 24);
             Console.WriteLine("Simulation beendet (24h erreicht oder manuell abgebrochen).");
+        }
+
+        private async Task AdvanceAndPublishAsync(TimeSpan timeStep, Action renderUi)
+        {
+            UpdateSimulation(timeStep);
+            UpdateModbusRegisters();
+            await PublishRabbitMqTelemetryAsync();
+            LogData();
+            renderUi();
         }
 
         private async Task PublishRabbitMqTelemetryAsync()
@@ -198,10 +331,10 @@ namespace Dual_Port_Charger
             regs[CommonRegisterMap.DeviceSpecificStart + 3] = (short)soc2[1];
         }
 
-        private void UpdateSimulation()
+        private void UpdateSimulation(TimeSpan timeStep)
         {
-            if (AutoMode) _device.UpdateAutoMode(_timeStep);
-            else _device.UpdateManualMode(_timeStep);
+            if (AutoMode) _device.UpdateAutoMode(timeStep);
+            else _device.UpdateManualMode(timeStep);
         }
 
         private void LogData()
@@ -218,16 +351,15 @@ namespace Dual_Port_Charger
             File.AppendAllLines(_logFilePath, new[] { string.Join(",", data) });
         }
 
-        private async Task HandleUserInputAsync(ConsoleKey key)
+        private Task HandleUserInputAsync(ConsoleKey key, bool masterConnected)
         {
             switch (key)
             {
                 case ConsoleKey.P:
-                    while (true)
-                    {
-                        if (!Console.IsInputRedirected && Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.P) break;
-                        await Task.Delay(100);
-                    }
+                    if (masterConnected)
+                        Console.WriteLine("Simulation master controls the clock; use the master to pause or resume.");
+                    else
+                        _locallyPaused = !_locallyPaused;
                     break;
                 case ConsoleKey.A:
                     AutoMode = true;
@@ -268,6 +400,8 @@ namespace Dual_Port_Charger
                     _isRunning = false;
                     break;
             }
+
+            return Task.CompletedTask;
         }
     }
 }

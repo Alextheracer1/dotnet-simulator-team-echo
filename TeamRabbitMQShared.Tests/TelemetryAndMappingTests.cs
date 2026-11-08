@@ -70,6 +70,27 @@ public class TelemetryAndMappingTests
     }
 
     [Fact]
+    public void RabbitMqPowerValues_PreserveNegativeValues()
+    {
+        var telemetry = new DeviceTelemetryMessage
+        {
+            DeviceId = "battery-1",
+            DeviceType = "battery",
+            ActivePowerWatts = -18000
+        };
+        var command = DeviceCommandMessage.CreateSetPowerLimit("battery", "battery-1", -18000);
+
+        var deserializedTelemetry = JsonSerializer.Deserialize<DeviceTelemetryMessage>(JsonSerializer.Serialize(telemetry));
+        var deserializedCommand = JsonSerializer.Deserialize<DeviceCommandMessage>(JsonSerializer.Serialize(command));
+
+        Assert.NotNull(deserializedTelemetry);
+        Assert.NotNull(deserializedCommand);
+        Assert.Equal(-18000, deserializedTelemetry.ActivePowerWatts);
+        Assert.Equal(-18000, deserializedCommand.Value);
+        Assert.Equal("battery", deserializedCommand.TargetDeviceType);
+    }
+
+    [Fact]
     public void RabbitMqConfiguration_RoutingKeyBuilders_FormatTopicsCorrectly()
     {
         // Arrange
@@ -78,10 +99,12 @@ public class TelemetryAndMappingTests
         // Act
         var telemetryKey = config.BuildTelemetryRoutingKey("charger", "charger-1");
         var commandKey = config.BuildCommandRoutingKey("charger", "charger-1");
+        var wildcardTypeCommandKey = config.BuildCommandRoutingKey("*", "battery-1");
 
         // Assert
         Assert.Equal("sim.telemetry.charger.charger-1", telemetryKey);
         Assert.Equal("sim.commands.charger.charger-1", commandKey);
+        Assert.Equal("sim.commands.*.battery-1", wildcardTypeCommandKey);
     }
 
     [Fact]
@@ -126,5 +149,18 @@ public class TelemetryAndMappingTests
         Assert.True(telemetry.IsOn);
         Assert.Equal(0.55f, (float)telemetry.GetMetric("SOC1"), 0.01f);
         Assert.Equal(0.75f, (float)telemetry.GetMetric("SOC2"), 0.01f);
+    }
+
+    [Fact]
+    public void ModbusTelemetryMapper_FromRegisters_PreservesNegativePower()
+    {
+        var registers = new int[25];
+        var powerRegisters = ModbusClient.ConvertFloatToRegisters(-2500f);
+        registers[CommonRegisterMap.ActivePower_High] = powerRegisters[0];
+        registers[CommonRegisterMap.ActivePower_Low] = powerRegisters[1];
+
+        var telemetry = ModbusTelemetryMapper.FromRegisters("battery-1", "battery", registers);
+
+        Assert.Equal(-2500f, (float)telemetry.ActivePowerWatts, 0.01f);
     }
 }
