@@ -1,11 +1,12 @@
-using System.Text;
+using Spectre.Console;
+using TeamConsoleShared;
 using WindTurbine_Simulator.Configuration;
 using WindTurbine_Simulator.ConsoleApp;
 using WindTurbine_Simulator.Domain;
-using WindTurbine_Simulator.Modbus; // WICHTIG: Namespace für Modbus hinzugefügt
+using WindTurbine_Simulator.Modbus;
 using WindTurbine_Simulator.Simulation;
 
-Console.OutputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+SimulationTheme.InitializeConsole();
 
 var ui = new ConsoleUi();
 SimulationOptions options = ui.ReadOptions();
@@ -16,13 +17,10 @@ var model = new WindTurbineModel(
     options.PowerCoefficient,
     options.RatedPowerKw);
 
-// NEU: Modbus-Server instanziieren und starten
-// Nur Port und Unit-ID übergeben
 using var modbusServer = new WindTurbineModbusService(options.ModbusPort, options.ModbusUnitId);
 modbusServer.Start();
-Console.WriteLine($"[Modbus] Server lauscht auf Port {options.ModbusPort} (Unit ID: {options.ModbusUnitId})");
+AnsiConsole.MarkupLine($"[grey62][Modbus][/] Server lauscht auf Port [bold cyan]{options.ModbusPort}[/] (Unit ID: [bold cyan]{options.ModbusUnitId}[/])");
 
-// ANGEPASST: Modbus-Server wird nun an den Runner übergeben
 var runner = new WindTurbineSimulationRunner(model, options, modbusServer);
 var statusRenderer = new ConsoleStatusRenderer();
 using var cancellationTokenSource = new CancellationTokenSource();
@@ -58,9 +56,9 @@ try
 }
 catch (OperationCanceledException)
 {
-    Console.WriteLine("Simulation wurde abgebrochen.");
+    AnsiConsole.MarkupLine("[bold yellow]Simulation wurde abgebrochen.[/]");
 }
-finally // NEU: Stellt sicher, dass der Netzwerkport freigegeben wird
+finally
 {
     modbusServer.Stop();
 }

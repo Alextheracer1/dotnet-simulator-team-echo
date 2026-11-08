@@ -1,4 +1,5 @@
 using Battery.Simulation;
+using TeamConsoleShared;
 
 namespace Battery
 {
@@ -6,6 +7,8 @@ namespace Battery
     {
         static async Task Main(string[] args)
         {
+            SimulationTheme.InitializeConsole();
+
             var options = new SimulationOptions
             {
                 CapacityKWh = 200,

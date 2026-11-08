@@ -1,17 +1,17 @@
 {
   "version": 2,
-  "dgSpecHash": "zjdnaLAJtU4=",
-  "success": true,
+  "dgSpecHash": "NXVOWRfgr08=",
+  "success": false,
   "projectFilePath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\Battery\\Battery.csproj",
-  "expectedPackageFiles": [
-    "C:\\Users\\nikol\\.nuget\\packages\\easymodbustcp.netcore\\1.0.0\\easymodbustcp.netcore.1.0.0.nupkg.sha512",
-    "C:\\Users\\nikol\\.nuget\\packages\\runtime.linux-arm.runtime.native.system.io.ports\\6.0.0\\runtime.linux-arm.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
-    "C:\\Users\\nikol\\.nuget\\packages\\runtime.linux-arm64.runtime.native.system.io.ports\\6.0.0\\runtime.linux-arm64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
-    "C:\\Users\\nikol\\.nuget\\packages\\runtime.linux-x64.runtime.native.system.io.ports\\6.0.0\\runtime.linux-x64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
-    "C:\\Users\\nikol\\.nuget\\packages\\runtime.native.system.io.ports\\6.0.0\\runtime.native.system.io.ports.6.0.0.nupkg.sha512",
-    "C:\\Users\\nikol\\.nuget\\packages\\runtime.osx-arm64.runtime.native.system.io.ports\\6.0.0\\runtime.osx-arm64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
-    "C:\\Users\\nikol\\.nuget\\packages\\runtime.osx-x64.runtime.native.system.io.ports\\6.0.0\\runtime.osx-x64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
-    "C:\\Users\\nikol\\.nuget\\packages\\system.io.ports\\6.0.0\\system.io.ports.6.0.0.nupkg.sha512"
-  ],
-  "logs": []
+  "expectedPackageFiles": [],
+  "logs": [
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Die lokale Quelle \"C:\\Users\\alex\\.nuget\\packages\" ist nicht vorhanden.",
+      "projectPath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\Battery\\Battery.csproj",
+      "filePath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\Battery\\Battery.csproj",
+      "targetGraphs": []
+    }
+  ]
 }

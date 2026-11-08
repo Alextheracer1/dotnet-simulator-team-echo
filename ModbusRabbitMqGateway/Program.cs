@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Spectre.Console;
+using TeamConsoleShared;
 using TeamConsoleShared.Components;
 using TeamConsoleShared.Layout;
 using TeamRabbitMQShared.Configuration;
@@ -14,7 +17,7 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        SimulationTheme.InitializeConsole();
         var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (s, e) =>
         {
@@ -35,8 +38,10 @@ class Program
 
         AnsiConsole.Clear();
         AnsiConsole.Write(
-            new FigletText("Modbus-RabbitMQ Gateway")
-                .Color(Color.Cyan1));
+            new Panel(new Markup("[bold cyan]⚡ Modbus-RabbitMQ Gateway[/]\n[grey62]Brücke zwischen Modbus TCP Feldgeräten und RabbitMQ Message Broker[/]"))
+                .Border(BoxBorder.Rounded)
+                .BorderStyle(new Style(foreground: SimulationTheme.GatewayAccent))
+                .Expand());
 
         AnsiConsole.MarkupLine("[bold green]Gateway gestartet. Initialisiere Polling-Schleife...[/]");
         await Task.Delay(1000, cts.Token);
@@ -80,18 +85,37 @@ class Program
 
     private static void RenderDashboard(GatewayService gateway, bool isPaused)
     {
-        Console.SetCursorPosition(0, 0);
+        if (Console.IsOutputRedirected || Console.IsErrorRedirected)
+        {
+            Console.WriteLine($"[GATEWAY] Pub: {gateway.TotalMessagesPublished} | Cmds: {gateway.TotalCommandsProcessed} | Bridges: {gateway.Bridges.Count}");
+            return;
+        }
 
-        var table = new Table().Border(TableBorder.Rounded).Expand();
-        table.Title("[bold cyan]⚡ Energy Twin 2026: Modbus-RabbitMQ Gateway[/]");
+        var header = new SimulationHeader
+        {
+            Title = "⚡ Modbus-RabbitMQ Gateway",
+            Subtitle = "Bridge & Telemetrie-Publisher (Modbus TCP → sim.exchange)",
+            SpeedDescription = $"{gateway.Bridges.Count} Feldgeräte",
+            ModeBadgeMarkup = isPaused ? StatusBadge.Paused("PAUSIERT") : StatusBadge.Running("POLLING AKTIV"),
+            StatusBadgeMarkup = gateway.RabbitMqPublisherConnected
+                ? StatusBadge.Custom("BROKER ONLINE", "black", "chartreuse3")
+                : StatusBadge.Fault("BROKER OFFLINE"),
+            AccentColor = SimulationTheme.GatewayAccent
+        };
 
-        table.AddColumn(new TableColumn("[bold]Feldgerät[/]").Centered());
-        table.AddColumn(new TableColumn("[bold]Modbus Port[/]").Centered());
-        table.AddColumn(new TableColumn("[bold]Modbus Status[/]").Centered());
-        table.AddColumn(new TableColumn("[bold]Wirkleistung (kW)[/]").RightAligned());
-        table.AddColumn(new TableColumn("[bold]Gesamtenergie (kWh)[/]").RightAligned());
-        table.AddColumn(new TableColumn("[bold]Sensordaten / Metriken[/]"));
-        table.AddColumn(new TableColumn("[bold]Erfolg / Fehler[/]").Centered());
+        var table = new Table()
+            .Border(TableBorder.Rounded)
+            .BorderStyle(new Style(foreground: SimulationTheme.GatewayAccent))
+            .Expand();
+
+        table.Title("[bold cyan]Aktive Feldgeräte-Bridges[/]");
+        table.AddColumn(new TableColumn("[bold grey85]Feldgerät[/]").Centered());
+        table.AddColumn(new TableColumn("[bold grey85]Port[/]").Centered());
+        table.AddColumn(new TableColumn("[bold grey85]Modbus[/]").Centered());
+        table.AddColumn(new TableColumn("[bold grey85]Leistung[/]").RightAligned());
+        table.AddColumn(new TableColumn("[bold grey85]Energie[/]").RightAligned());
+        table.AddColumn(new TableColumn("[bold grey85]Sensordaten / Metriken[/]"));
+        table.AddColumn(new TableColumn("[bold grey85]Erfolg / Fehler[/]").Centered());
 
         foreach (var bridge in gateway.Bridges)
         {
@@ -118,44 +142,54 @@ class Program
             }
 
             table.AddRow(
-                $"[bold]{bridge.Endpoint.DeviceId}[/] ({bridge.Endpoint.DeviceType})",
-                bridge.Endpoint.Port.ToString(),
+                $"[bold white]{bridge.Endpoint.DeviceId}[/] [grey]({bridge.Endpoint.DeviceType})[/]",
+                $"[cyan]{bridge.Endpoint.Port}[/]",
                 modbusStatus,
-                power,
+                $"[bold]{power}[/]",
                 energy,
                 extraMetrics,
                 $"{bridge.PollSuccessCount} / [red]{bridge.PollFailureCount}[/]"
             );
         }
 
-        var rabbitMqStatus = gateway.RabbitMqPublisherConnected
-            ? "[bold chartreuse3]VERBUNDEN[/]"
-            : "[bold red]GETRENNT (Offline)[/]";
-
-        var summaryGrid = new Grid();
-        summaryGrid.AddColumn();
-        summaryGrid.AddColumn();
-        summaryGrid.AddRow(
-            new Markup($"[bold]RabbitMQ Broker Status:[/] {rabbitMqStatus} | [bold]Modus:[/] {(isPaused ? "[yellow]PAUSIERT[/]" : "[green]AKTIV[/]")}"),
-            new Markup($"[bold]Publiziert:[/] [cyan]{gateway.TotalMessagesPublished}[/] | [bold]Befehle verarbeitet:[/] [yellow]{gateway.TotalCommandsProcessed}[/]")
-        );
-
-        var logLines = gateway.RecentActivity.TakeLast(6).Select(Markup.Escape);
+        var logLines = gateway.RecentActivity.TakeLast(5).Select(Markup.Escape);
         var logContent = string.Join("\n", logLines);
         var logPanel = new Panel(new Markup(string.IsNullOrEmpty(logContent) ? "[grey]Noch keine Ereignisse...[/]" : logContent))
         {
             Header = new PanelHeader("[bold grey]Ereignis- und Aktivitäts-Log[/]"),
-            Border = BoxBorder.Rounded
+            Border = BoxBorder.Rounded,
+            BorderStyle = new Style(foreground: Color.Grey42)
+        }.Expand();
+
+        var summaryItems = new List<MetricItem>
+        {
+            MetricItem.Text("Broker Status", gateway.RabbitMqPublisherConnected ? "Verbunden" : "Offline", gateway.RabbitMqPublisherConnected ? "bold chartreuse3" : "bold red", "🐇"),
+            MetricItem.Text("Betriebsmodus", isPaused ? "Pausiert" : "Aktiv (Polling)", isPaused ? "bold yellow" : "bold green3", "⚙️"),
+            MetricItem.Number("Publizierte Pakete", gateway.TotalMessagesPublished, "", "bold cyan", "0", "📤"),
+            MetricItem.Number("Befehle verarbeitet", gateway.TotalCommandsProcessed, "", "bold yellow", "0", "📥")
         };
+        var summaryGrid = MetricGrid.Create(summaryItems, columns: 2);
+        var summaryPanel = new Panel(summaryGrid)
+            .Header("[bold white]Gateway Telemetrie-Statistiken[/]")
+            .Border(BoxBorder.Rounded)
+            .BorderStyle(new Style(foreground: Color.Grey42))
+            .Expand();
 
-        var layout = new Layout("Root")
-            .SplitRows(
-                new Layout("Header", summaryGrid),
-                new Layout("Table", table),
-                new Layout("Log", logPanel),
-                new Layout("Footer", new Markup("[grey]Tasten: [P] Pause/Fortsetzen | [Q] Beenden[/]"))
-            );
+        var keyBar = KeyBindingBar.Create(new[]
+        {
+            ("P", "Pause / Fortsetzen"),
+            ("Q / X", "Beenden")
+        });
 
-        AnsiConsole.Write(layout);
+        var layoutGrid = new Grid().Expand();
+        layoutGrid.AddColumn(new GridColumn());
+        layoutGrid.AddRow(header.Build());
+        layoutGrid.AddRow(summaryPanel);
+        layoutGrid.AddRow(table);
+        layoutGrid.AddRow(logPanel);
+        layoutGrid.AddRow(keyBar);
+
+        SimulationTheme.PrepareFrame();
+        AnsiConsole.Write(layoutGrid);
     }
 }

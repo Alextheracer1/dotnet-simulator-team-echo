@@ -1,9 +1,22 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
+using TeamShared.Simulation;
 using WeatherSimulator.Models;
 using WeatherSimulator.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var masterHost = builder.Configuration["SimulationMaster:Host"]
+    ?? Environment.GetEnvironmentVariable("SIMULATION_MASTER_HOST")
+    ?? "127.0.0.1";
+var masterPortValue = builder.Configuration["SimulationMaster:Port"]
+    ?? Environment.GetEnvironmentVariable("SIMULATION_MASTER_PORT");
+var masterPort = 1510;
+if (!string.IsNullOrWhiteSpace(masterPortValue) &&
+    (!int.TryParse(masterPortValue, out masterPort) || masterPort is < 1 or > 65535))
+{
+    throw new InvalidOperationException("Simulation-Master-Port muss zwischen 1 und 65535 liegen.");
+}
 
 // Port konfigurieren (Standard 5005)
 var port = builder.Configuration.GetValue<int?>("WeatherSimulator:Port") ?? 5005;
@@ -28,6 +41,12 @@ if (resolvedCsvPath == null)
 // Services registrieren
 builder.Services.AddSingleton<ISolarPositionCalculator, SolarPositionCalculator>();
 builder.Services.AddSingleton<IWeatherCsvParser, WeatherCsvParser>();
+builder.Services.AddSingleton<WeatherSimulationClock>();
+builder.Services.AddSingleton<ITimeMasterClient>(_ => new WeatherSimulationMasterClient(
+    masterHost,
+    masterPort,
+    Environment.MachineName + "-WeatherSimulator"));
+builder.Services.AddHostedService<WeatherSimulationMasterWorker>();
 
 var csvParser = new WeatherCsvParser();
 var dataset = csvParser.Parse(resolvedCsvPath);

@@ -1,4 +1,6 @@
 using System.Globalization;
+using Spectre.Console;
+using TeamConsoleShared;
 using WindTurbine_Simulator.Configuration;
 
 namespace WindTurbine_Simulator.ConsoleApp;
@@ -7,12 +9,15 @@ public sealed class ConsoleUi
 {
     public SimulationOptions ReadOptions()
     {
-        Console.WriteLine("Konfiguration des Windturbinen-Digitalzwillings");
-        Console.Write("Standardwerte für Physik und Zeit verwenden (j/n)? [j]: ");
+        AnsiConsole.Write(
+            new Panel(new Markup("[bold deepskyblue1]🌀 Windturbinen-Digitalzwilling[/]\n[grey62]Digitaler Zwilling für Windenergieanlagen (Vestas V90)[/]"))
+                .Border(BoxBorder.Rounded)
+                .BorderStyle(new Style(foreground: SimulationTheme.WindAccent))
+                .Expand());
 
+        AnsiConsole.Markup("[bold cyan]Standardwerte für Physik und Zeit verwenden (j/n)?[/] [grey][[j]]: [/]");
         var input = Console.ReadLine()?.Trim().ToLower();
 
-        // Lokale Variablen mit den Standardwerten vorbelegen
         TimeSpan? duration = TimeSpan.FromHours(24);
         TimeSpan stepInterval = TimeSpan.FromSeconds(300);
         double ratedPower = 3000.0;
@@ -27,11 +32,10 @@ public sealed class ConsoleUi
         }
         else
         {
-            Console.WriteLine("Standardwerte für Physik und Zeit werden geladen...");
+            AnsiConsole.MarkupLine("[grey62]Standardwerte für Physik und Zeit werden geladen...[/]");
         }
 
-        // Netzwerkparameter werden nun IMMER abgefragt:
-        Console.WriteLine("\n--- Netzwerkeinstellungen ---");
+        AnsiConsole.MarkupLine("\n[bold deepskyblue1]--- Netzwerkeinstellungen ---[/]");
         var modbusPort = ReadModbusPort();
         var modbusUnitId = ReadModbusUnitId();
 
@@ -48,24 +52,23 @@ public sealed class ConsoleUi
 
     public void PrintStart(SimulationOptions options, string csvPath)
     {
-        Console.WriteLine();
-        Console.WriteLine($"CSV-Protokoll: {csvPath}");
-        Console.WriteLine(options.Duration.HasValue
-            ? $"Simulation startet ({options.Duration.Value.TotalHours:0.##} h, Schrittweite {options.StepInterval.TotalSeconds:0.##} s, Zeitraffer x{options.SpeedMultiplier:0.##})."
-            : $"Simulation startet (unbegrenzt, Schrittweite {options.StepInterval.TotalSeconds:0.##} s, Zeitraffer x{options.SpeedMultiplier:0.##}). Abbruch mit Ctrl+C.");
-        Console.WriteLine("Live-Ausgabe startet...");
+        AnsiConsole.MarkupLine($"[grey62]CSV-Protokoll:[/] [cyan]{Markup.Escape(csvPath)}[/]");
+        AnsiConsole.MarkupLine(options.Duration.HasValue
+            ? $"[green]Simulation startet[/] ([grey]{options.Duration.Value.TotalHours:0.##} h, Schritt {options.StepInterval.TotalSeconds:0.##} s, Zeitraffer x{options.SpeedMultiplier:0.##}[/])."
+            : $"[green]Simulation startet[/] ([grey]unbegrenzt, Schritt {options.StepInterval.TotalSeconds:0.##} s, Zeitraffer x{options.SpeedMultiplier:0.##}[/]).");
+        AnsiConsole.MarkupLine("[dim grey]Live-Dashboard wird geladen...[/]");
     }
 
     public void PrintCompleted()
     {
-        Console.WriteLine("Simulation abgeschlossen.");
+        AnsiConsole.MarkupLine("[bold green]Simulation abgeschlossen.[/]");
     }
 
     private static TimeSpan? ReadDuration()
     {
         while (true)
         {
-            Console.Write("Simulationsdauer in Stunden [24] oder 'inf' für unbegrenzt: ");
+            AnsiConsole.Markup("[bold grey85]Simulationsdauer in Stunden [grey][[24]][/] oder 'inf' für unbegrenzt: [/]");
             var input = Console.ReadLine()?.Trim();
 
             if (string.IsNullOrWhiteSpace(input))
@@ -85,7 +88,7 @@ public sealed class ConsoleUi
                 return TimeSpan.FromHours(hours);
             }
 
-            Console.WriteLine("Bitte eine positive Zahl oder 'inf' eingeben.");
+            AnsiConsole.MarkupLine("[yellow]Bitte eine positive Zahl oder 'inf' eingeben.[/]");
         }
     }
 
@@ -93,7 +96,7 @@ public sealed class ConsoleUi
     {
         while (true)
         {
-            Console.Write("Zeitschritt in Sekunden [300]: ");
+            AnsiConsole.Markup("[bold grey85]Zeitschritt in Sekunden [grey][[300]][/]: [/]");
             var input = Console.ReadLine()?.Trim();
 
             if (string.IsNullOrWhiteSpace(input))
@@ -108,7 +111,7 @@ public sealed class ConsoleUi
                 return TimeSpan.FromSeconds(seconds);
             }
 
-            Console.WriteLine("Bitte eine positive Zahl eingeben.");
+            AnsiConsole.MarkupLine("[yellow]Bitte eine positive Zahl eingeben.[/]");
         }
     }
 
@@ -116,7 +119,7 @@ public sealed class ConsoleUi
     {
         while (true)
         {
-            Console.Write("Nennleistung in kW [3000]: ");
+            AnsiConsole.Markup("[bold grey85]Nennleistung in kW [grey][[3000]][/]: [/]");
             var input = Console.ReadLine()?.Trim();
 
             if (string.IsNullOrWhiteSpace(input))
@@ -129,7 +132,7 @@ public sealed class ConsoleUi
                 return power;
             }
 
-            Console.WriteLine("Bitte eine positive Zahl eingeben.");
+            AnsiConsole.MarkupLine("[yellow]Bitte eine positive Zahl eingeben.[/]");
         }
     }
 
@@ -137,7 +140,7 @@ public sealed class ConsoleUi
     {
         while (true)
         {
-            Console.Write("Rotorfläche in m² [8000]: ");
+            AnsiConsole.Markup("[bold grey85]Rotorfläche in m² [grey][[8000]][/]: [/]");
             var input = Console.ReadLine()?.Trim();
 
             if (string.IsNullOrWhiteSpace(input))
@@ -150,7 +153,7 @@ public sealed class ConsoleUi
                 return area;
             }
 
-            Console.WriteLine("Bitte eine positive Zahl eingeben.");
+            AnsiConsole.MarkupLine("[yellow]Bitte eine positive Zahl eingeben.[/]");
         }
     }
 
@@ -158,12 +161,12 @@ public sealed class ConsoleUi
     {
         while (true)
         {
-            Console.Write("Modbus TCP Port (unprivilegiert, z.B. ab 1502) [1504]: ");
+            AnsiConsole.Markup("[bold grey85]Modbus TCP Port [grey][[1505]][/]: [/]");
             var input = Console.ReadLine()?.Trim();
 
             if (string.IsNullOrWhiteSpace(input))
             {
-                return 1504;
+                return 1505;
             }
 
             if (int.TryParse(input, out var port) && port >= 1024 && port <= 65535)
@@ -171,7 +174,7 @@ public sealed class ConsoleUi
                 return port;
             }
 
-            Console.WriteLine("Bitte einen gültigen Port zwischen 1024 und 65535 eingeben.");
+            AnsiConsole.MarkupLine("[yellow]Bitte einen gültigen Port zwischen 1024 und 65535 eingeben.[/]");
         }
     }
 
@@ -179,7 +182,7 @@ public sealed class ConsoleUi
     {
         while (true)
         {
-            Console.Write("Modbus Unit-ID (Gerätekennung 1-247) [1]: ");
+            AnsiConsole.Markup("[bold grey85]Modbus Unit-ID [grey][[1]][/]: [/]");
             var input = Console.ReadLine()?.Trim();
 
             if (string.IsNullOrWhiteSpace(input))
@@ -192,7 +195,7 @@ public sealed class ConsoleUi
                 return unitId;
             }
 
-            Console.WriteLine("Bitte eine gültige Unit-ID zwischen 1 und 247 eingeben.");
+            AnsiConsole.MarkupLine("[yellow]Bitte eine gültige Unit-ID zwischen 1 und 247 eingeben.[/]");
         }
     }
 }

@@ -1,6 +1,13 @@
+using System;
+using System.Collections.Generic;
 using System.Threading.Channels;
 using Battery.Battery;
 using Battery.Simulation;
+using Spectre.Console;
+using Spectre.Console.Rendering;
+using TeamConsoleShared;
+using TeamConsoleShared.Components;
+using TeamConsoleShared.Layout;
 
 namespace Battery.ConsoleUi;
 
@@ -8,9 +15,14 @@ public sealed class ConsoleDashboard
 {
     private readonly object _inputLock = new();
     private string _inputBuffer = string.Empty;
-    private string[]? _lastDashboard;
-    private string? _lastRenderedInput;
-    private int _lastWindowWidth;
+    private readonly int _modbusPort;
+    private readonly byte _modbusUnitId;
+
+    public ConsoleDashboard(int modbusPort = 1503, byte modbusUnitId = 1)
+    {
+        _modbusPort = modbusPort;
+        _modbusUnitId = modbusUnitId;
+    }
 
     public async Task ReadCommandsAsync(ChannelWriter<string> writer, CancellationToken cancellationToken)
     {
@@ -122,120 +134,98 @@ public sealed class ConsoleDashboard
         var inflowKW = Math.Max(0, targetPowerKW);
         var outflowKW = Math.Max(0, totalDeviceDemandKW);
         var totalFlowKW = inflowKW - outflowKW;
-        var masterText = string.IsNullOrWhiteSpace(masterStatus) ? "MASTER: UNKNOWN" : $"MASTER: {masterStatus}";
-        var dashboardLines = new List<string>
-        {
-            "BATTERY ENERGY STORAGE SIMULATOR",
-            "════════════════════════════════════════════════════════════",
-            "SIMULATION",
-            $"  Time       {simulatedTime:yyyy-MM-dd HH:mm}",
-            $"  {masterText}",
-            $"  Mode: {mode}{(paused ? " (Paused)" : string.Empty)}",
-            $"  Step       {stepSize.TotalMinutes:g} min simulated / {realTimeStepInterval.TotalSeconds:g} sec real",
-            $"  Net   {targetPowerKW:+0.00;-0.00;0.00} kW     Devices: {deviceCount} ({totalDeviceDemandKW:F2} kW load)",
-        };
-
-        dashboardLines.AddRange(
-        [
-            "BATTERY",
-            $"  State      {battery.State}     Fault: {battery.FaultMessage ?? "None"}",
-            $"  Charge     [{ProgressBar(battery.StateOfChargePercent)}] {battery.StateOfChargePercent,6:F2}%  ({battery.StateOfChargeKWh:F2} / {battery.CapacityKWh:F2} kWh)",
-            $"  Power  {battery.CurrentPowerKW,+8:F2} kW",
-            $"  Throughput +{battery.ChargedEnergyKWh:F2} kWh charged / -{battery.DischargedEnergyKWh:F2} kWh discharged",
-            "ENERGY METERS",
-            $"  Inflow {inflowKW,+8:F2} kW",
-            $"  Outflow{outflowKW,8:F2} kW",
-            $"  Total  {totalFlowKW,+8:F2} kW",
-            "RECENT HISTORY",
-            rollingSummary is null
-                ? "  SOC (last 96)  No readings"
-                : $"  SOC (last 96)  Avg {rollingSummary.AveragePercent:F2}%  Min {rollingSummary.MinimumPercent:F2}%  Max {rollingSummary.MaximumPercent:F2}%",
-            "OUTPUT",
-            $"  CSV        {Path.Combine("data", "battery-run.csv")}",
-            "COMMAND KEYS",
-            $"  {KeyBinding("A", "Auto schedule")}  {KeyBinding("M", "Manual mode")}  {KeyBinding("D", "Configure discharge")}",
-            $"  {KeyBinding("X", "Disconnect all")}  {KeyBinding("C", "Charge 20 kW")}  {KeyBinding("I", "Idle")}",
-            $"  {KeyBinding("P", "Pause / resume")}  {KeyBinding("˄/˅", "Adjust power")}  {KeyBinding("+/-", "Adjust step")}",
-            $"  {KeyBinding("Q", "Quit")}  {KeyBinding("F", "Inject fault")}  {KeyBinding("R", "Reset fault")}",
-            $"  After D: enter 0-{SimulationOptions.MaximumDeviceCount} devices, then each device's kW demand. P cancels and resumes.",
-            "  X immediately unplugs all connected devices.",
-            $"NOTICE  {notice ?? "Operating"}"
-        ]);
-        var fullDashboard = dashboardLines.ToArray();
-        var statusLine = $"{simulatedTime:yyyy-MM-dd HH:mm:ss} {mode}{(paused ? " (Paused)" : string.Empty)} | {masterText} | SOC {battery.StateOfChargePercent:F2}% | Battery {battery.CurrentPowerKW:+0.00;-0.00;0.00} kW | In {inflowKW:F2} / Out {outflowKW:F2} / Net {totalFlowKW:F2} kW";
+        var masterText = string.IsNullOrWhiteSpace(masterStatus) ? "Offline" : masterStatus;
 
         if (Console.IsOutputRedirected || Console.IsErrorRedirected)
         {
-            Console.WriteLine(statusLine);
+            var fallback = $"{simulatedTime:yyyy-MM-dd HH:mm:ss} {mode}{(paused ? " (Paused)" : string.Empty)} | SOC {battery.StateOfChargePercent:F1}% | Battery {battery.CurrentPowerKW:+0.00;-0.00;0.00} kW | Demand {totalDeviceDemandKW:F2} kW";
+            Console.WriteLine(fallback);
             return;
         }
 
-        try
-        {
-            var width = Math.Max(1, Console.WindowWidth);
-            var displayWidth = Math.Max(1, width - 1);
-            var dashboard = fullDashboard;
-            var redrawAll = _lastDashboard is null || _lastWindowWidth != width ||
-                _lastDashboard.Length != dashboard.Length;
-
-            for (var row = 0; row < dashboard.Length; row++)
+        var dashboard = new SimulationDashboard()
+            .WithHeader(h =>
             {
-                if (!redrawAll && string.Equals(_lastDashboard![row], dashboard[row], StringComparison.Ordinal))
-                    continue;
+                h.Title = "🔋 Batteriespeicher Simulator (BESS)";
+                h.Subtitle = "Feldgerät: Stationärer Lithium-Eisenphosphat Speicher";
+                h.ModbusPort = _modbusPort;
+                h.ModbusUnitId = _modbusUnitId;
+                h.SimulatedTime = simulatedTime;
+                h.SpeedDescription = $"{stepSize.TotalMinutes:g} min Sim = {realTimeStepInterval.TotalSeconds:g} s Real";
+                h.ModeBadgeMarkup = StatusBadge.Mode(mode == ControlMode.Auto);
+                h.StatusBadgeMarkup = battery.State == BatteryState.Fault
+                    ? StatusBadge.Fault("STÖRUNG")
+                    : (paused ? StatusBadge.Paused("PAUSIERT") : StatusBadge.Running("BETRIEB"));
+                h.AccentColor = SimulationTheme.BatteryAccent;
+            });
 
-                Console.SetCursorPosition(0, row);
-                Console.Write(FitToWidth(dashboard[row], displayWidth));
-            }
-
-            string input;
-            lock (_inputLock)
-                input = _inputBuffer;
-            if (redrawAll || !string.Equals(_lastRenderedInput, input, StringComparison.Ordinal))
-            {
-                Console.SetCursorPosition(0, dashboard.Length);
-                Console.Write(FitToWidth($"> {input}", displayWidth));
-                Console.SetCursorPosition(Math.Min(width - 1, input.Length + 2), dashboard.Length);
-            }
-
-            _lastDashboard = dashboard;
-            _lastRenderedInput = input;
-            _lastWindowWidth = width;
-        }
-        catch (IOException)
+        if (battery.State == BatteryState.Fault)
         {
-            WriteFallbackStatusLine(statusLine);
+            dashboard.WithAlert($"STÖRUNG AKTIV: {battery.FaultMessage ?? "Batterie meldet Fehler"}! Drücken Sie [R] zum Zurücksetzen.");
         }
-        catch (ArgumentOutOfRangeException)
+        else if (!string.IsNullOrWhiteSpace(notice) && !notice.Equals("Operating", StringComparison.OrdinalIgnoreCase))
         {
-            WriteFallbackStatusLine(statusLine);
+            dashboard.WithAlert($"HINWEIS: {notice}", "bold black on yellow");
         }
-        catch (InvalidOperationException)
+
+        var maxChargeKw = battery.MaximumChargePowerKW > 0 ? battery.MaximumChargePowerKW : 50.0;
+        var maxDischargeKw = battery.MaximumDischargePowerKW > 0 ? battery.MaximumDischargePowerKW : 50.0;
+        var maxDisplayPower = Math.Max(maxChargeKw, maxDischargeKw);
+
+        // Column 1: Battery storage and state
+        var batteryMetrics = new List<MetricItem>
         {
-            WriteFallbackStatusLine(statusLine);
+            MetricItem.MarkupValue("Ladezustand (SOC)", GaugeBar.StateOfCharge(battery.StateOfChargePercent, 20), icon: "🔋"),
+            MetricItem.Text("Kapazität", $"{battery.StateOfChargeKWh:F1} / {battery.CapacityKWh:F1} kWh", "bold white", "📦"),
+            MetricItem.MarkupValue("Batterieleistung", GaugeBar.Power(Math.Abs(battery.CurrentPowerKW), maxDisplayPower, "kW", 20, battery.CurrentPowerKW >= 0 ? "Laden" : "Entladen"), icon: "⚡"),
+            MetricItem.Text("Betriebsstatus", battery.State.ToString(), battery.State == BatteryState.Fault ? "bold red" : "bold green3", "⚙️"),
+            MetricItem.Text("Durchsatz", $"+{battery.ChargedEnergyKWh:F1} kWh / -{battery.DischargedEnergyKWh:F1} kWh", "bold white", "🔄")
+        };
+
+        // Column 2: Network, loads and master sync
+        var masterColor = masterText.Contains("ONLINE", StringComparison.OrdinalIgnoreCase) || masterText.Contains("Connected", StringComparison.OrdinalIgnoreCase)
+            ? "bold chartreuse3"
+            : "dim grey";
+        var gridMetrics = new List<MetricItem>
+        {
+            MetricItem.Text("Master-Sync", masterText, masterColor, "⏱️"),
+            MetricItem.Number("Netzbezug (Inflow)", inflowKW, "kW", "bold cyan", icon: "🔌"),
+            MetricItem.Number("Verbraucher (Outflow)", outflowKW, "kW", "bold orange1", icon: "🏢"),
+            MetricItem.Number("Gesamtfluss (Netto)", totalFlowKW, "kW", totalFlowKW >= 0 ? "bold green3" : "bold red", "+0.00;-0.00;0.00", icon: "⚖️"),
+            MetricItem.Text("Verbraucherlast", $"{deviceCount} Geräte ({totalDeviceDemandKW:F2} kW)", "bold white", "💡"),
+            MetricItem.Text("SOC-Verlauf (Ø/Min/Max)", rollingSummary is null ? "--" : $"{rollingSummary.AveragePercent:F1}% / {rollingSummary.MinimumPercent:F1}% / {rollingSummary.MaximumPercent:F1}%", "bold yellow", "📈")
+        };
+
+        dashboard.AddTwoColumns(
+            ("Batteriespeicher & Zellstatus", MetricGrid.Create(batteryMetrics, 1)),
+            ("Netzanschluss, Lasten & Takt", MetricGrid.Create(gridMetrics, 1))
+        );
+
+        string currentInput;
+        lock (_inputLock)
+        {
+            currentInput = _inputBuffer;
         }
-    }
 
-    private static void WriteFallbackStatusLine(string statusLine)
-    {
-        var width = Math.Max(1, Console.WindowWidth);
-        Console.Write('\r');
-        Console.Write(FitToWidth(statusLine, Math.Max(1, width - 1)));
-    }
+        if (!string.IsNullOrEmpty(currentInput))
+        {
+            dashboard.AddSection("Aktuelle Konsoleneingabe", new Markup($"[bold yellow]> {Markup.Escape(currentInput)}[/]"));
+        }
 
-    private static string KeyBinding(string key, string description)
-    {
-        return $"{key,-4} {description,-20}";
-    }
+        dashboard.WithKeyBindings(
+            ("A/M", "Auto/Manuell"),
+            ("D", "Entladen"),
+            ("C", "Laden 20kW"),
+            ("I", "Leerlauf"),
+            ("X", "Trennen"),
+            ("P", "Pause"),
+            ("↑/↓", "Leistung"),
+            ("+/-", "Schritt"),
+            ("F/R", "Fehler/Reset"),
+            ("Q", "Beenden")
+        );
 
-    private static string ProgressBar(double percent)
-    {
-        const int width = 20;
-        var filled = (int)Math.Round(Math.Clamp(percent, 0, 100) / 100 * width);
-        return new string('■', filled) + new string('□', width - filled);
-    }
-
-    private static string FitToWidth(string value, int width)
-    {
-        return value.Length >= width ? value[..width] : value.PadRight(width);
+        SimulationTheme.PrepareFrame();
+        AnsiConsole.Write(dashboard.Build());
     }
 }

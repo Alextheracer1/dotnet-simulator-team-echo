@@ -82,3 +82,7 @@ C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/Battery/obj/Debug/net
 /Users/alex/Github/dotnet-simulator-team-echo/Battery/bin/Debug/net10.0/TeamShared.pdb
 /Users/alex/Github/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.csproj.AssemblyReference.cache
 /Users/alex/Github/dotnet-simulator-team-echo/Battery/obj/Debug/net10.0/Battery.csproj.Up2Date
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/bin/Debug/net10.0/Spectre.Console.dll
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/bin/Debug/net10.0/Spectre.Console.Ansi.dll
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/bin/Debug/net10.0/TeamConsoleShared.dll
+/Users/alex/Github/dotnet-simulator-team-echo/Battery/bin/Debug/net10.0/TeamConsoleShared.pdb

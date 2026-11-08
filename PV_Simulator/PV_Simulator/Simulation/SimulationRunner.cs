@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using PV_Simulator.ConsoleApp;
 using PV_Simulator.Domain;
+using TeamShared.Simulation;
 
 namespace PV_Simulator.Simulation;
 
@@ -17,71 +18,155 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
         Inverter inverter,
         SimulationSettings settings,
         CsvSimulationLogger csvLogger,
+        ITimeMasterClient masterClient,
         CancellationToken cancellationToken = default)
     {
+        await masterClient.ConnectWithRetryAsync(cancellationToken).ConfigureAwait(false);
+        var initialEnvironment = await masterClient.RequestEnvironmentAsync(cancellationToken).ConfigureAwait(false)
+            ?? throw new IOException("Der Simulation Master hat keine Startzeit geliefert.");
+        var currentVirtualTime = ToUtcOffset(initialEnvironment.VirtualTime);
+        var startVirtualTime = currentVirtualTime;
+        var masterTimeStep = initialEnvironment.TimeStep > TimeSpan.Zero
+            ? initialEnvironment.TimeStep
+            : TimeSpan.FromSeconds(1);
+        var isRunning = initialEnvironment.IsRunning;
         var elapsed = TimeSpan.Zero;
-        var speedMultiplier = settings.SpeedMultiplier;
-        var totalSteps = (int)Math.Ceiling(settings.Duration.TotalSeconds / settings.TimeStep.TotalSeconds);
+        Task<SimulationMessage?>? messageTask = masterClient.WaitForNextMessageAsync(cancellationToken);
+        Task? connectionTask = null;
 
-        while (elapsed < settings.Duration)
+        using var fallbackTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        var fallbackTick = fallbackTimer.WaitForNextTickAsync(cancellationToken).AsTask();
+
+        async Task AdvanceAndLogAsync(DateTimeOffset targetTime, TimeSpan timeStep)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            speedMultiplier = ReadRuntimeControls(engine, speedMultiplier, cancellationToken);
-            var timeStep = settings.TimeStep <= settings.Duration - elapsed
-                ? settings.TimeStep
-                : settings.Duration - elapsed;
-            var snapshot = engine.Advance(elapsed);
-            elapsed += timeStep;
+            currentVirtualTime = targetTime;
+            elapsed = targetTime - startVirtualTime;
+            if (elapsed < TimeSpan.Zero)
+                elapsed = TimeSpan.Zero;
+
+            var snapshot = engine.AdvanceTo(targetTime, timeStep);
+            var speedMultiplier = timeStep.TotalSeconds;
+            var totalSteps = GetTotalSteps(settings.Duration, timeStep);
             renderer.Render(
                 snapshot,
                 location,
                 array,
                 inverter,
-                settings,
                 settings.Duration,
                 speedMultiplier,
                 totalSteps,
-                GetSelectedWeatherControlName());
+                GetSelectedWeatherControlName(),
+                timeStep);
             await csvLogger.WriteAsync(snapshot, location.Name, cancellationToken);
+        }
 
-            var delayMilliseconds = Math.Max(100, timeStep.TotalMilliseconds / speedMultiplier);
-            await Task.Delay(TimeSpan.FromMilliseconds(delayMilliseconds), cancellationToken);
+        while (elapsed < settings.Duration)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var waitTasks = new List<Task> { fallbackTick };
+            if (messageTask is not null)
+                waitTasks.Add(messageTask);
+            if (connectionTask is not null)
+                waitTasks.Add(connectionTask);
+
+            var completed = await Task.WhenAny(waitTasks).ConfigureAwait(false);
+
+            if (connectionTask is not null && completed == connectionTask)
+            {
+                await connectionTask.ConfigureAwait(false);
+                connectionTask = null;
+                var environment = await masterClient.RequestEnvironmentAsync(cancellationToken).ConfigureAwait(false);
+                if (environment is not null)
+                {
+                    currentVirtualTime = ToUtcOffset(environment.VirtualTime);
+                    masterTimeStep = environment.TimeStep > TimeSpan.Zero ? environment.TimeStep : masterTimeStep;
+                    isRunning = environment.IsRunning;
+                    elapsed = Max(TimeSpan.Zero, currentVirtualTime - startVirtualTime);
+                }
+                messageTask = masterClient.WaitForNextMessageAsync(cancellationToken);
+                continue;
+            }
+
+            ReadRuntimeControls(engine, cancellationToken);
+
+            if (messageTask is not null && completed == messageTask)
+            {
+                var message = await messageTask.ConfigureAwait(false);
+                messageTask = null;
+
+                if (message is null)
+                {
+                    if (connectionTask is null)
+                        connectionTask = masterClient.ConnectWithRetryAsync(cancellationToken);
+                }
+                else if (message.Type == SimulationMessageTypes.Environment)
+                {
+                    currentVirtualTime = ToUtcOffset(message.VirtualTime);
+                    masterTimeStep = message.TimeStep > TimeSpan.Zero ? message.TimeStep : masterTimeStep;
+                    isRunning = message.IsRunning;
+                    elapsed = Max(TimeSpan.Zero, currentVirtualTime - startVirtualTime);
+                    messageTask = masterClient.WaitForNextMessageAsync(cancellationToken);
+                }
+                else if (message.Type == SimulationMessageTypes.TimeStep)
+                {
+                    currentVirtualTime = ToUtcOffset(message.VirtualTime);
+                    masterTimeStep = message.TimeStep > TimeSpan.Zero ? message.TimeStep : masterTimeStep;
+                    isRunning = message.IsRunning;
+
+                    try
+                    {
+                        await masterClient.SendAcknowledgementAsync(
+                            message.Sequence,
+                            message.VirtualTime,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (IOException exception)
+                    {
+                        Console.Error.WriteLine($"[Simulation Master] ACK fehlgeschlagen: {exception.Message}");
+                        if (connectionTask is null)
+                            connectionTask = masterClient.ConnectWithRetryAsync(cancellationToken);
+                    }
+
+                    await AdvanceAndLogAsync(currentVirtualTime, masterTimeStep).ConfigureAwait(false);
+                    if (masterClient.IsConnected)
+                        messageTask = masterClient.WaitForNextMessageAsync(cancellationToken);
+                }
+                else
+                {
+                    messageTask = masterClient.WaitForNextMessageAsync(cancellationToken);
+                }
+            }
+
+            if (completed == fallbackTick)
+            {
+                if (!await fallbackTick.ConfigureAwait(false))
+                    break;
+
+                if (!masterClient.IsConnected && isRunning)
+                    await AdvanceAndLogAsync(currentVirtualTime + masterTimeStep, masterTimeStep).ConfigureAwait(false);
+
+                fallbackTick = fallbackTimer.WaitForNextTickAsync(cancellationToken).AsTask();
+            }
         }
     }
 
-    private double ReadRuntimeControls(
-        SimulationEngine engine,
-        double speedMultiplier,
-        CancellationToken cancellationToken)
+    private void ReadRuntimeControls(SimulationEngine engine, CancellationToken cancellationToken)
     {
-        while (Console.KeyAvailable)
+        while (!Console.IsInputRedirected && Console.KeyAvailable)
         {
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.P)
             {
-                Console.WriteLine("Pausiert — P zum Fortsetzen; Wettersteuerung und F bleiben verfügbar.");
-                while (true)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var pauseKey = Console.ReadKey(intercept: true).Key;
-                    if (pauseKey == ConsoleKey.P)
-                    {
-                        break;
-                    }
-
-                    speedMultiplier = HandleRuntimeKey(pauseKey, engine, speedMultiplier);
-                }
+                Console.WriteLine("Pause und Fortsetzen werden vom Simulation Master gesteuert.");
             }
             else
             {
-                speedMultiplier = HandleRuntimeKey(key, engine, speedMultiplier);
+                HandleRuntimeKey(key, engine);
             }
         }
-
-        return speedMultiplier;
     }
 
-    private double HandleRuntimeKey(ConsoleKey key, SimulationEngine engine, double speedMultiplier)
+    private void HandleRuntimeKey(ConsoleKey key, SimulationEngine engine)
     {
         switch (key)
         {
@@ -105,7 +190,7 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
                 }
                 else
                 {
-                    speedMultiplier = Math.Min(speedMultiplier * 2, 1_000_000);
+                    Console.WriteLine("Schrittweite und Tempo werden vom Simulation Master gesteuert.");
                 }
 
                 break;
@@ -121,7 +206,7 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
                 }
                 else
                 {
-                    speedMultiplier = Math.Max(speedMultiplier / 2, 0.01);
+                    Console.WriteLine("Schrittweite und Tempo werden vom Simulation Master gesteuert.");
                 }
 
                 break;
@@ -150,9 +235,15 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
                 Console.WriteLine($"PV-Module {(engine.ToggleSnowCover() ? "verschneit" : "schneefrei")}.");
                 break;
         }
-
-        return speedMultiplier;
     }
+
+    private static int GetTotalSteps(TimeSpan duration, TimeSpan timeStep) =>
+        Math.Max(1, (int)Math.Ceiling(duration.TotalSeconds / timeStep.TotalSeconds));
+
+    private static DateTimeOffset ToUtcOffset(DateTime virtualTime) =>
+        new(DateTime.SpecifyKind(virtualTime, DateTimeKind.Utc));
+
+    private static TimeSpan Max(TimeSpan left, TimeSpan right) => left >= right ? left : right;
 
     private string GetSelectedWeatherControlName() => _selectedWeatherControl switch
     {

@@ -69,3 +69,6 @@ C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simul
 /Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.pdb
 /Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.genruntimeconfig.cache
 /Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/ref/PV_Simulator.dll
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.dll
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\obj\Debug\net10.0\refint\PV_Simulator.dll
+C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.pdb

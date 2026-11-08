@@ -65,7 +65,7 @@ public sealed class WindTurbineSimulationRunner
 
     private static async Task<double> ReadRuntimeControlsAsync(double speedMultiplier, CancellationToken cancellationToken)
     {
-        while (Console.KeyAvailable)
+        while (!Console.IsInputRedirected && Console.KeyAvailable)
         {
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.P)

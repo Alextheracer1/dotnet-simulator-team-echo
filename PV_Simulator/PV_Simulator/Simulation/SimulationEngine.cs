@@ -82,6 +82,16 @@ public sealed class SimulationEngine
 
         var timeStep = Min(_settings.TimeStep, _settings.Duration - elapsed);
         var simulatedAt = _settings.StartTime + elapsed + timeStep;
+        return AdvanceTo(simulatedAt, timeStep);
+    }
+
+    public SimulationSnapshot AdvanceTo(DateTimeOffset simulatedAt, TimeSpan timeStep)
+    {
+        if (timeStep <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeStep));
+        }
+
         var date = DateOnly.FromDateTime(simulatedAt.DateTime);
         if (_energyDate != date)
         {

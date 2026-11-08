@@ -1,6 +1,8 @@
 using System;
 using System.Globalization;
 using PV_Simulator.Domain;
+using Spectre.Console;
+using TeamConsoleShared;
 
 namespace PV_Simulator.ConsoleApp;
 
@@ -8,11 +10,11 @@ public sealed class ConsoleInput
 {
     public SimulationConfiguration ReadConfiguration()
     {
-        Console.WriteLine("Startprofil wählen: 1 = Standardwerte, 2 = Parameter manuell eingeben (Enter = Standardwerte)");
+        AnsiConsole.MarkupLine("[bold cyan]Startprofil wählen:[/] 1 = Standardwerte, 2 = Parameter manuell eingeben [grey](Enter = 1)[/]");
         SimulationConfiguration configuration;
         while (true)
         {
-            Console.Write("Auswahl: ");
+            AnsiConsole.Markup("[bold grey85]Auswahl: [/]");
             var choice = Console.ReadLine()?.Trim();
             if (string.IsNullOrEmpty(choice) || choice == "1")
             {
@@ -28,12 +30,11 @@ public sealed class ConsoleInput
                 break;
             }
 
-            Console.WriteLine("Bitte 1 oder 2 auswählen.");
+            AnsiConsole.MarkupLine("[yellow]Bitte 1 oder 2 auswählen.[/]");
         }
 
-        var startTime = new SimulationDateSelector().ReadStartTime();
         var settings = new SimulationSettings(
-            startTime,
+            DateTimeOffset.UtcNow,
             configuration.Settings.TimeStep,
             configuration.Settings.SpeedMultiplier);
         var weatherSettings = ReadWeatherSettings();
@@ -63,13 +64,11 @@ public sealed class ConsoleInput
         var inverterPower = ReadRequiredDouble("Maximale Wechselrichter-Ausgangsleistung in kW", 0.01, 1_000_000);
         var failureProbability = ReadDouble("Wechselrichter-Ausfallwahrscheinlichkeit in % pro Stunde", 0, 100, SimulationDefaults.InverterFailureProbabilityPerHour * 100) / 100;
         var repairMinutes = ReadDouble("Mittlere Reparaturdauer in Minuten", double.Epsilon, 1_000_000, SimulationDefaults.InverterRepairDuration.TotalMinutes);
-        var stepMinutes = ReadDouble("Simulationsschritt in Minuten", double.Epsilon, 1440, SimulationDefaults.SimulationTimeStep.TotalMinutes);
-        var speed = ReadDouble("Anfängliche Zeitraffer-Geschwindigkeit (simulierte Sekunden pro Echtsekunde)", double.Epsilon, 1_000_000, SimulationDefaults.SimulationSpeedMultiplier);
         return new SimulationConfiguration(
             new Location(name, latitude, longitude, elevation),
             new PvArray(deviceId, peakPower, tilt, azimuth),
             new Inverter(inverterPower, failureProbability, TimeSpan.FromMinutes(repairMinutes)),
-            new SimulationSettings(defaultSettings.StartTime, TimeSpan.FromMinutes(stepMinutes), speed),
+            new SimulationSettings(DateTimeOffset.UtcNow, defaultSettings.TimeStep, defaultSettings.SpeedMultiplier),
             new WeatherSettings(null));
     }
 
@@ -77,7 +76,7 @@ public sealed class ConsoleInput
     {
         while (true)
         {
-            Console.Write("Wetter-Zufallsseed [Enter = zufällig]: ");
+            AnsiConsole.Markup("[bold grey85]Wetter-Zufallsseed [grey][[Enter = zufällig]][/]: [/]");
             var input = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(input))
             {
@@ -89,7 +88,7 @@ public sealed class ConsoleInput
                 return new WeatherSettings(seed);
             }
 
-            Console.WriteLine("Bitte eine ganze Zahl eingeben oder Enter für einen zufälligen Verlauf drücken.");
+            AnsiConsole.MarkupLine("[yellow]Bitte eine ganze Zahl eingeben oder Enter drücken.[/]");
         }
     }
 
@@ -97,23 +96,31 @@ public sealed class ConsoleInput
     {
         while (true)
         {
-            Console.Write($"{prompt}: ");
-            var value = Console.ReadLine();
-            if (!string.IsNullOrWhiteSpace(value))
+            AnsiConsole.Markup($"[bold grey85]{Markup.Escape(prompt)}: [/]");
+            var input = Console.ReadLine()?.Trim();
+            if (!string.IsNullOrWhiteSpace(input))
             {
-                return value.Trim();
+                return input;
             }
 
-            Console.WriteLine("Dieses Feld ist erforderlich.");
+            AnsiConsole.MarkupLine("[yellow]Dieses Feld darf nicht leer sein.[/]");
         }
+    }
+
+    private static string ReadText(string prompt, string defaultValue)
+    {
+        AnsiConsole.Markup($"[bold grey85]{Markup.Escape(prompt)} [grey][[{Markup.Escape(defaultValue)}]][/]: [/]");
+        var input = Console.ReadLine()?.Trim();
+        return string.IsNullOrWhiteSpace(input) ? defaultValue : input;
     }
 
     private static double ReadRequiredDouble(string prompt, double minimum, double maximum)
     {
         while (true)
         {
-            Console.Write($"{prompt}: ");
-            if (double.TryParse(Console.ReadLine(), NumberStyles.Float, CultureInfo.CurrentCulture, out var value)
+            AnsiConsole.Markup($"[bold grey85]{Markup.Escape(prompt)}: [/]");
+            var input = Console.ReadLine();
+            if (double.TryParse(input, NumberStyles.Float, CultureInfo.CurrentCulture, out var value)
                 && double.IsFinite(value)
                 && value >= minimum
                 && value <= maximum)
@@ -121,22 +128,7 @@ public sealed class ConsoleInput
                 return value;
             }
 
-            Console.WriteLine($"Bitte eine Zahl zwischen {minimum} und {maximum} eingeben.");
-        }
-    }
-
-    private static string ReadText(string prompt, string defaultValue)
-    {
-        while (true)
-        {
-            Console.Write($"{prompt} [{defaultValue}]: ");
-            var value = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return defaultValue;
-            }
-
-            return value.Trim();
+            AnsiConsole.MarkupLine($"[yellow]Bitte eine gültige Zahl zwischen {minimum} und {maximum} eingeben.[/]");
         }
     }
 
@@ -144,7 +136,7 @@ public sealed class ConsoleInput
     {
         while (true)
         {
-            Console.Write($"{prompt} [{defaultValue}]: ");
+            AnsiConsole.Markup($"[bold grey85]{Markup.Escape(prompt)} [grey][[{defaultValue}]][/]: [/]");
             var input = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(input))
             {
@@ -159,19 +151,28 @@ public sealed class ConsoleInput
                 return value;
             }
 
-            Console.WriteLine($"Bitte eine Zahl zwischen {minimum} und {maximum} eingeben.");
+            AnsiConsole.MarkupLine($"[yellow]Bitte eine Zahl zwischen {minimum} und {maximum} eingeben.[/]");
         }
     }
 
     private static void DisplayConfiguration(SimulationConfiguration configuration)
     {
-        Console.WriteLine("Finale Konfiguration vor Simulationsstart:");
-        Console.WriteLine($"Standort: {configuration.Location.Name}, {configuration.Location.Latitude}°, {configuration.Location.Longitude}°, {configuration.Location.ElevationMeters} m");
-        Console.WriteLine($"PV-Anlage {configuration.Array.DeviceId}: Modul-Nennleistung {configuration.Array.ModuleNominalPowerKilowattsPeak} kWp, Neigung {configuration.Array.TiltDegrees}°, Azimut {configuration.Array.AzimuthDegrees}°");
-        Console.WriteLine($"Wechselrichter: maximale Ausgangsleistung {configuration.Inverter.RatedPowerKilowatts} kW, Ausfallwahrscheinlichkeit {configuration.Inverter.FailureProbabilityPerHour:P0}/h, Reparatur {configuration.Inverter.RepairDuration.TotalMinutes:0} min");
-        Console.WriteLine($"Simulationsdatum: {configuration.Settings.StartTime:dd.MM.yyyy}, Startzeit: {configuration.Settings.StartTime:HH:mm} Uhr Ortszeit");
-        Console.WriteLine($"Simulationsschritt: {configuration.Settings.TimeStep.TotalMinutes:0} min, Zeitraffer: {configuration.Settings.SpeedMultiplier}x");
-        Console.WriteLine($"Wetterverlauf: automatisch für Datum und Standort | Seed: {configuration.WeatherSettings.RandomSeed?.ToString(CultureInfo.CurrentCulture) ?? "zufällig"}");
-    }
+        var table = new Table()
+            .Border(TableBorder.Rounded)
+            .BorderStyle(new Style(foreground: SimulationTheme.PvAccent))
+            .Expand();
 
+        table.Title("[bold gold1]Finale Simulationskonfiguration[/]");
+        table.AddColumn(new TableColumn("[bold grey85]Parameter[/]"));
+        table.AddColumn(new TableColumn("[bold grey85]Wert[/]"));
+
+        table.AddRow("Standort", $"{configuration.Location.Name} ({configuration.Location.Latitude:F2}°, {configuration.Location.Longitude:F2}°, {configuration.Location.ElevationMeters} m)");
+        table.AddRow("PV-Anlage", $"{configuration.Array.DeviceId} | {configuration.Array.ModuleNominalPowerKilowattsPeak:F2} kWp (Neigung: {configuration.Array.TiltDegrees}°, Azimut: {configuration.Array.AzimuthDegrees}°)");
+        table.AddRow("Wechselrichter", $"{configuration.Inverter.RatedPowerKilowatts:F2} kW | Ausfallrate: {configuration.Inverter.FailureProbabilityPerHour:P0}/h");
+        table.AddRow("Startzeit", "Wird vom Simulation Master übernommen");
+        table.AddRow("Taktung", "Wird vom Simulation Master gesteuert");
+        table.AddRow("Wetter", $"Automatisch | Seed: {configuration.WeatherSettings.RandomSeed?.ToString(CultureInfo.CurrentCulture) ?? "zufällig"}");
+
+        AnsiConsole.Write(table);
+    }
 }

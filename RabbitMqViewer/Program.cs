@@ -5,7 +5,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Spectre.Console;
+using TeamConsoleShared;
 using TeamConsoleShared.Components;
+using TeamConsoleShared.Layout;
 using TeamRabbitMQShared.Configuration;
 using TeamRabbitMQShared.Consumer;
 using TeamRabbitMQShared.Models;
@@ -21,7 +23,7 @@ class Program
 
     static async Task Main(string[] args)
     {
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        SimulationTheme.InitializeConsole();
         var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (s, e) =>
         {
@@ -35,8 +37,10 @@ class Program
 
         AnsiConsole.Clear();
         AnsiConsole.Write(
-            new FigletText("RabbitMQ Viewer")
-                .Color(Color.DeepSkyBlue1));
+            new Panel(new Markup("[bold dodgerblue2]📡 RabbitMQ Live Telemetrie-Viewer[/]\n[grey62]Echtzeit-Monitoring für Sensordaten und Ereignisströme[/]"))
+                .Border(BoxBorder.Rounded)
+                .BorderStyle(new Style(foreground: SimulationTheme.ViewerAccent))
+                .Expand());
 
         AnsiConsole.MarkupLine("[bold cyan]Verbinde mit RabbitMQ und abonniere Telemetrie (sim.telemetry.#)...[/]");
 
@@ -50,7 +54,7 @@ class Program
                 (telemetry, DateTime.Now, 1),
                 (key, existing) => (telemetry, DateTime.Now, existing.MessageCount + 1));
 
-            AddLog($"Telemetrie empfangen von [bold]{telemetry.DeviceId}[/] ({telemetry.ActivePowerKw:F1} kW)");
+            AddLog($"Telemetrie empfangen von [bold white]{telemetry.DeviceId}[/] ({telemetry.ActivePowerKw:F1} kW)");
             await Task.CompletedTask;
         }, cts.Token);
 
@@ -63,7 +67,6 @@ class Program
                 switch (key)
                 {
                     case ConsoleKey.C:
-                        // Interactive command sender
                         await SendTestCommandAsync(publisher, cts.Token);
                         break;
                     case ConsoleKey.R:
@@ -93,33 +96,54 @@ class Program
 
     private static void RenderDashboard(RabbitMqConfiguration config, bool isConnected, long totalMessages)
     {
-        Console.SetCursorPosition(0, 0);
+        if (Console.IsOutputRedirected || Console.IsErrorRedirected)
+        {
+            Console.WriteLine($"[RABBITMQ-VIEWER] Connected: {isConnected} | Messages: {totalMessages} | Devices: {Devices.Count}");
+            return;
+        }
 
-        var headerGrid = new Grid();
-        headerGrid.AddColumn();
-        headerGrid.AddColumn();
+        var header = new SimulationHeader
+        {
+            Title = "📡 RabbitMQ Live Telemetrie-Viewer",
+            Subtitle = $"Exchange: {config.ExchangeName} | Topic: sim.telemetry.#",
+            SpeedDescription = $"{Devices.Count} Feldgeräte online",
+            ModeBadgeMarkup = StatusBadge.Info($"{totalMessages} NACHRICHTEN"),
+            StatusBadgeMarkup = isConnected
+                ? StatusBadge.Custom("BROKER ONLINE", "black", "chartreuse3")
+                : StatusBadge.Fault("BROKER OFFLINE"),
+            AccentColor = SimulationTheme.ViewerAccent
+        };
 
-        var statusBadge = isConnected
-            ? "[bold chartreuse3]● ONLINE[/]"
-            : "[bold red]● OFFLINE (Warte auf Broker)[/]";
+        var stats = new List<MetricItem>
+        {
+            MetricItem.Text("Broker Host", $"{config.HostName}:{config.Port}", "bold cyan", "🐇"),
+            MetricItem.Text("Verbindungsstatus", isConnected ? "Verbunden" : "Offline (Warte auf Broker)", isConnected ? "bold chartreuse3" : "bold red", "🔌"),
+            MetricItem.Number("Empfangene Pakete", totalMessages, "", "bold white", "0", "📥"),
+            MetricItem.Number("Erfasste Feldgeräte", Devices.Count, "", "bold green3", "0", "📊")
+        };
+        var statsGrid = MetricGrid.Create(stats, columns: 2);
+        var statsPanel = new Panel(statsGrid)
+            .Header("[bold white]Broker- & Stream-Übersicht[/]")
+            .Border(BoxBorder.Rounded)
+            .BorderStyle(new Style(foreground: Color.Grey42))
+            .Expand();
 
-        headerGrid.AddRow(
-            new Markup($"[bold]Broker:[/] {config.HostName}:{config.Port} | [bold]Status:[/] {statusBadge}"),
-            new Markup($"[bold]Empfangene Pakete:[/] [cyan]{totalMessages}[/] | [bold]Aktive Geräte:[/] [green]{Devices.Count}[/]")
-        );
+        var table = new Table()
+            .Border(TableBorder.Rounded)
+            .BorderStyle(new Style(foreground: SimulationTheme.ViewerAccent))
+            .Expand();
 
-        var table = new Table().Border(TableBorder.Rounded).Expand();
-        table.Title("[bold deepskyblue1]📡 Aktive Feldgeräte-Telemetrie (RabbitMQ Live)[/]");
+        table.Title("[bold dodgerblue2]Aktive Feldgeräte-Telemetrie (sim.telemetry.#)[/]");
 
-        table.AddColumn(new TableColumn("[bold]Geräte-ID[/]").Centered());
-        table.AddColumn(new TableColumn("[bold]Typ[/]").Centered());
-        table.AddColumn(new TableColumn("[bold]Zustand[/]").Centered());
-        table.AddColumn(new TableColumn("[bold]Wirkleistung[/]").RightAligned());
-        table.AddColumn(new TableColumn("[bold]Auslastung[/]").Centered());
-        table.AddColumn(new TableColumn("[bold]Energie[/]").RightAligned());
-        table.AddColumn(new TableColumn("[bold]Gerätespezifische Metriken[/]"));
-        table.AddColumn(new TableColumn("[bold]Pakete[/]").Centered());
-        table.AddColumn(new TableColumn("[bold]Zuletzt gesehen[/]").Centered());
+        table.AddColumn(new TableColumn("[bold grey85]Geräte-ID[/]").Centered());
+        table.AddColumn(new TableColumn("[bold grey85]Typ[/]").Centered());
+        table.AddColumn(new TableColumn("[bold grey85]Zustand[/]").Centered());
+        table.AddColumn(new TableColumn("[bold grey85]Wirkleistung[/]").RightAligned());
+        table.AddColumn(new TableColumn("[bold grey85]Auslastung[/]").Centered());
+        table.AddColumn(new TableColumn("[bold grey85]Energie[/]").RightAligned());
+        table.AddColumn(new TableColumn("[bold grey85]Gerätespezifische Metriken[/]"));
+        table.AddColumn(new TableColumn("[bold grey85]Pakete[/]").Centered());
+        table.AddColumn(new TableColumn("[bold grey85]Zuletzt[/]").Centered());
 
         if (Devices.IsEmpty)
         {
@@ -188,35 +212,41 @@ class Program
             }
         }
 
-        var logContent = string.Join("\n", RecentLogs.TakeLast(6));
+        var logContent = string.Join("\n", RecentLogs.TakeLast(5));
         var logPanel = new Panel(new Markup(string.IsNullOrEmpty(logContent) ? "[grey]Noch keine Ereignisse...[/]" : logContent))
         {
             Header = new PanelHeader("[bold grey]Live Nachrichten-Stream[/]"),
-            Border = BoxBorder.Rounded
-        };
+            Border = BoxBorder.Rounded,
+            BorderStyle = new Style(foreground: Color.Grey42)
+        }.Expand();
 
-        var footer = new Markup("[grey]Tasten: [bold yellow][C][/] Test-Befehl senden | [bold cyan][R][/] Liste leeren | [bold red][Q][/] Beenden[/]");
+        var keyBar = KeyBindingBar.Create(new[]
+        {
+            ("C", "Test-Befehl senden"),
+            ("R", "Liste leeren"),
+            ("Q / X", "Beenden")
+        });
 
-        var layout = new Layout("Root")
-            .SplitRows(
-                new Layout("Header", headerGrid),
-                new Layout("Table", table),
-                new Layout("Log", logPanel),
-                new Layout("Footer", footer)
-            );
+        var layoutGrid = new Grid().Expand();
+        layoutGrid.AddColumn(new GridColumn());
+        layoutGrid.AddRow(header.Build());
+        layoutGrid.AddRow(statsPanel);
+        layoutGrid.AddRow(table);
+        layoutGrid.AddRow(logPanel);
+        layoutGrid.AddRow(keyBar);
 
-        AnsiConsole.Write(layout);
+        SimulationTheme.PrepareFrame();
+        AnsiConsole.Write(layoutGrid);
     }
 
     private static async Task SendTestCommandAsync(IRabbitMqPublisher publisher, CancellationToken ct)
     {
-        Console.SetCursorPosition(0, 22);
-        AnsiConsole.MarkupLine("[bold yellow]Test-Befehl an Charger senden: SetPowerLimit auf 150000 W (150 kW)...[/]");
+        AddLog("[bold yellow]Sende Test-Befehl an 'charger-1': SetPowerLimit = 150 kW...[/]");
         var cmd = DeviceCommandMessage.CreateSetPowerLimit("charger-1", 150000);
         var success = await publisher.PublishCommandAsync(cmd, cancellationToken: ct);
         if (success)
         {
-            AddLog("[bold green]Testbefehl 'SetPowerLimit: 150kW' erfolgreich an RabbitMQ gesendet![/]");
+            AddLog("[bold green]Testbefehl 'SetPowerLimit: 150kW' erfolgreich an RabbitMQ publiziert![/]");
         }
         else
         {

@@ -42,6 +42,9 @@
           "projectReferences": {
             "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\TeamConsoleShared\\TeamConsoleShared.csproj": {
               "projectPath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\TeamConsoleShared\\TeamConsoleShared.csproj"
+            },
+            "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\TeamShared\\TeamShared.csproj": {
+              "projectPath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\TeamShared\\TeamShared.csproj"
             }
           }
         }
