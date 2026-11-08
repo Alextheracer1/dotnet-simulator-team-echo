@@ -107,19 +107,6 @@ public class ConsoleUI
 
     public void Render()
     {
-        if (!Console.IsOutputRedirected)
-        {
-            try
-            {
-                Console.CursorVisible = false;
-                Console.SetCursorPosition(0, 0);
-            }
-            catch
-            {
-                // Ignore cursor movement errors in unsupported terminal environments
-            }
-        }
-
-        AnsiConsole.Write(BuildDashboard().Build());
+        BuildDashboard().Render();
     }
 }

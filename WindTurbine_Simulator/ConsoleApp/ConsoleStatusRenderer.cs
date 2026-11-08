@@ -88,7 +88,6 @@ public sealed class ConsoleStatusRenderer
             ("Ctrl+C", "Beenden")
         );
 
-        SimulationTheme.PrepareFrame();
-        AnsiConsole.Write(dashboard.Build());
+        dashboard.Render();
     }
 }

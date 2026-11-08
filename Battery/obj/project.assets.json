@@ -8,26 +8,41 @@
     "net10.0": []
   },
   "packageFolders": {
+<<<<<<< HEAD
     "C:\\Users\\nikol\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
+=======
+    "/tmp/dotnet_home/.nuget/packages/": {}
+>>>>>>> 1c2ce614a30bdc936e622d6d27a16130b063886b
   },
   "project": {
     "version": "1.0.0",
     "restore": {
       "projectUniqueName": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\Battery\\Battery.csproj",
       "projectName": "Battery",
+<<<<<<< HEAD
       "projectPath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\Battery\\Battery.csproj",
       "packagesPath": "C:\\Users\\nikol\\.nuget\\packages\\",
       "outputPath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\Battery\\obj\\",
+=======
+      "projectPath": "/Users/alex/Github/dotnet-simulator-team-echo/Battery/Battery.csproj",
+      "packagesPath": "/tmp/dotnet_home/.nuget/packages/",
+      "outputPath": "/Users/alex/Github/dotnet-simulator-team-echo/Battery/obj/",
+>>>>>>> 1c2ce614a30bdc936e622d6d27a16130b063886b
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
+<<<<<<< HEAD
         "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\NuGet.Config",
         "C:\\Users\\nikol\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+=======
+        "/Users/alex/Github/dotnet-simulator-team-echo/NuGet.Config",
+        "/tmp/dotnet_home/.nuget/NuGet/NuGet.Config"
+>>>>>>> 1c2ce614a30bdc936e622d6d27a16130b063886b
       ],
       "originalTargetFrameworks": [
         "net10.0"
@@ -37,7 +52,6 @@
       },
       "frameworks": {
         "net10.0": {
-          "framework": "net10.0",
           "targetAlias": "net10.0",
           "projectReferences": {
             "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\TeamConsoleShared\\TeamConsoleShared.csproj": {
@@ -63,7 +77,6 @@
     },
     "frameworks": {
       "net10.0": {
-        "framework": "net10.0",
         "targetAlias": "net10.0",
         "imports": [
           "net461",

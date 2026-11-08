@@ -236,7 +236,9 @@ class Program
         layoutGrid.AddRow(keyBar);
 
         SimulationTheme.PrepareFrame();
-        AnsiConsole.Write(layoutGrid);
+        var maxLines = !Console.IsOutputRedirected ? Math.Max(5, Console.WindowHeight - 1) : int.MaxValue;
+        AnsiConsole.Write(new CroppedRenderable(layoutGrid, maxLines));
+        SimulationTheme.EndFrame();
     }
 
     private static async Task SendTestCommandAsync(IRabbitMqPublisher publisher, CancellationToken ct)

@@ -1,5 +1,6 @@
 {
   "version": 2,
+<<<<<<< HEAD
   "dgSpecHash": "8mynJ7ucQNE=",
   "success": false,
   "projectFilePath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\PV_Simulator\\PV_Simulator\\PV_Simulator.csproj",
@@ -14,4 +15,14 @@
       "targetGraphs": []
     }
   ]
+=======
+  "dgSpecHash": "PcFigHfxyTw=",
+  "success": true,
+  "projectFilePath": "/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/PV_Simulator.csproj",
+  "expectedPackageFiles": [
+    "/tmp/dotnet_home/.nuget/packages/spectre.console/0.57.2/spectre.console.0.57.2.nupkg.sha512",
+    "/tmp/dotnet_home/.nuget/packages/spectre.console.ansi/0.57.2/spectre.console.ansi.0.57.2.nupkg.sha512"
+  ],
+  "logs": []
+>>>>>>> 1c2ce614a30bdc936e622d6d27a16130b063886b
 }

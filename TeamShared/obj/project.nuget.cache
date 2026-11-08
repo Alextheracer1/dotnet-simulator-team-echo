@@ -1,9 +1,14 @@
 {
   "version": 2,
+<<<<<<< HEAD
   "dgSpecHash": "wKWcWDPCvkA=",
+=======
+  "dgSpecHash": "J5ZZmtLcd14=",
+>>>>>>> 1c2ce614a30bdc936e622d6d27a16130b063886b
   "success": true,
   "projectFilePath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\TeamShared\\TeamShared.csproj",
   "expectedPackageFiles": [
+<<<<<<< HEAD
     "C:\\Users\\nikol\\.nuget\\packages\\easymodbustcp.netcore\\1.0.0\\easymodbustcp.netcore.1.0.0.nupkg.sha512",
     "C:\\Users\\nikol\\.nuget\\packages\\runtime.linux-arm.runtime.native.system.io.ports\\6.0.0\\runtime.linux-arm.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
     "C:\\Users\\nikol\\.nuget\\packages\\runtime.linux-arm64.runtime.native.system.io.ports\\6.0.0\\runtime.linux-arm64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
@@ -12,6 +17,16 @@
     "C:\\Users\\nikol\\.nuget\\packages\\runtime.osx-arm64.runtime.native.system.io.ports\\6.0.0\\runtime.osx-arm64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
     "C:\\Users\\nikol\\.nuget\\packages\\runtime.osx-x64.runtime.native.system.io.ports\\6.0.0\\runtime.osx-x64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
     "C:\\Users\\nikol\\.nuget\\packages\\system.io.ports\\6.0.0\\system.io.ports.6.0.0.nupkg.sha512"
+=======
+    "/tmp/dotnet_home/.nuget/packages/easymodbustcp.netcore/1.0.0/easymodbustcp.netcore.1.0.0.nupkg.sha512",
+    "/tmp/dotnet_home/.nuget/packages/runtime.linux-arm.runtime.native.system.io.ports/6.0.0/runtime.linux-arm.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
+    "/tmp/dotnet_home/.nuget/packages/runtime.linux-arm64.runtime.native.system.io.ports/6.0.0/runtime.linux-arm64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
+    "/tmp/dotnet_home/.nuget/packages/runtime.linux-x64.runtime.native.system.io.ports/6.0.0/runtime.linux-x64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
+    "/tmp/dotnet_home/.nuget/packages/runtime.native.system.io.ports/6.0.0/runtime.native.system.io.ports.6.0.0.nupkg.sha512",
+    "/tmp/dotnet_home/.nuget/packages/runtime.osx-arm64.runtime.native.system.io.ports/6.0.0/runtime.osx-arm64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
+    "/tmp/dotnet_home/.nuget/packages/runtime.osx-x64.runtime.native.system.io.ports/6.0.0/runtime.osx-x64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
+    "/tmp/dotnet_home/.nuget/packages/system.io.ports/6.0.0/system.io.ports.6.0.0.nupkg.sha512"
+>>>>>>> 1c2ce614a30bdc936e622d6d27a16130b063886b
   ],
   "logs": []
 }

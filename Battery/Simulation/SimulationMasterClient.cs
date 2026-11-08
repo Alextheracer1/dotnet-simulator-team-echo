@@ -56,7 +56,10 @@ public sealed class SimulationMasterClient : ITimeMasterClient
             catch (Exception exception) when (exception is SocketException or IOException or InvalidOperationException)
             {
                 await DisconnectAsync().ConfigureAwait(false);
-                Console.Error.WriteLine($"[Master connection] Attempt {attempt} to {_host}:{_port} failed: {exception.Message}");
+                if (Console.IsOutputRedirected || Console.IsErrorRedirected)
+                {
+                    Console.Error.WriteLine($"[Master connection] Attempt {attempt} to {_host}:{_port} failed: {exception.Message}");
+                }
 
                 if (attempt >= maxAttempts)
                     throw;
