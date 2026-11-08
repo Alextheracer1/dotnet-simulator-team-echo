@@ -14,13 +14,14 @@
         "outputPath": "/Users/alex/Github/dotnet-simulator-team-echo/TeamShared/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
+          "/Users/alex/Github/dotnet-simulator-team-echo/NuGet.Config",
           "/Users/alex/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
         ],
         "sources": {
-          "https://api.nuget.org/v3/index.json": {}
+          "/Users/alex/.nuget/packages": {}
         },
         "frameworks": {
           "net10.0": {

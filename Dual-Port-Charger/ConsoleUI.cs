@@ -49,6 +49,7 @@ public class ConsoleUI
             MetricItem.Number("Netzanschluss Max-Limit", maxPowerKw, "kW", "bold cyan", icon: "🔌"),
             MetricItem.Number("Aktuelle Stationslast", activePowerKw, "kW", activePowerKw > maxPowerKw * 0.9 ? "bold red" : "bold green3", icon: "⚡"),
             MetricItem.Number("Geladene Gesamtenergie", totalEnergyKwh, "kWh", "bold white", icon: "📊"),
+            MetricItem.Text("RabbitMQ Telemetrie", _simulator.RabbitMqConnected ? $"Verbunden ({_simulator.RabbitMqPublishedCount} gesendet)" : "Broker Offline (Fallback aktiv)", _simulator.RabbitMqConnected ? "bold chartreuse3" : "dim grey", "🐇"),
             MetricItem.MarkupValue("Auslastung", GaugeBar.Power(activePowerKw, maxPowerKw, "kW", 26))
         }, columns: 1));
 
