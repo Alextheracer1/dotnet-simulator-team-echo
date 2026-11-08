@@ -5,6 +5,7 @@ using Battery.Battery;
 using Battery.ConsoleUi;
 using Battery.Persistence;
 using Battery.Simulation.Meters;
+using TeamConsoleShared;
 using TeamShared.Simulation;
 
 namespace Battery.Simulation;
@@ -215,7 +216,7 @@ public sealed class BatterySimulator
                         }
                     }
 
-                    if (Stopwatch.GetElapsedTime(lastRenderTimestamp, now) >= TimeSpan.FromSeconds(1))
+                    if (SimulationTheme.CheckResize() || Stopwatch.GetElapsedTime(lastRenderTimestamp, now) >= TimeSpan.FromSeconds(1))
                     {
                         RenderDashboard(simulatedTime, elapsed, _notice, masterStatus);
                         lastRenderTimestamp = now;

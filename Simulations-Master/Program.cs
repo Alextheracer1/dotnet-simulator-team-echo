@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,6 +33,8 @@ public static class Program
 
         var serverTask = server.StartAsync(cancellationTokenSource.Token);
 
+        var lastRenderTime = Stopwatch.GetTimestamp();
+
         try
         {
             while (!cancellationTokenSource.IsCancellationRequested)
@@ -40,15 +43,28 @@ public static class Program
                     await serverTask.ConfigureAwait(false);
 
                 RenderDashboard(engine, server, port);
+                lastRenderTime = Stopwatch.GetTimestamp();
 
-                if (!Console.IsInputRedirected && Console.KeyAvailable)
+                while (!cancellationTokenSource.IsCancellationRequested)
                 {
-                    var key = Console.ReadKey(intercept: true);
-                    HandleKey(engine, key.Key, cancellationTokenSource);
-                }
-                else
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationTokenSource.Token).ConfigureAwait(false);
+                    if (!Console.IsInputRedirected && Console.KeyAvailable)
+                    {
+                        var key = Console.ReadKey(intercept: true);
+                        HandleKey(engine, key.Key, cancellationTokenSource);
+                        break;
+                    }
+
+                    if (SimulationTheme.CheckResize())
+                    {
+                        break; // Immediate redraw on console resize
+                    }
+
+                    if (Stopwatch.GetElapsedTime(lastRenderTime) >= TimeSpan.FromSeconds(1))
+                    {
+                        break;
+                    }
+
+                    await Task.Delay(50, cancellationTokenSource.Token).ConfigureAwait(false);
                 }
             }
         }

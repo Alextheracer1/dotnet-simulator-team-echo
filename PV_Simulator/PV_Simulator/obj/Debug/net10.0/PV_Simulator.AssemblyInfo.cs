@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PV_Simulator")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c579b4fe244298edfde37fbc6f117ab373027605")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+76ff271e89173c884dadd08330b08b43c2062fe1")]
 [assembly: System.Reflection.AssemblyProductAttribute("PV_Simulator")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PV_Simulator")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
