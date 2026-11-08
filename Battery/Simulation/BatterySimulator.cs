@@ -5,13 +5,18 @@ using Battery.Battery;
 using Battery.ConsoleUi;
 using Battery.Persistence;
 using Battery.Simulation.Meters;
-using TeamConsoleShared;
 using TeamShared.Simulation;
+using TeamRabbitMQShared.Configuration;
+using TeamRabbitMQShared.Consumer;
+using TeamRabbitMQShared.Models;
+using TeamRabbitMQShared.Publisher;
 
 namespace Battery.Simulation;
 
 public sealed class BatterySimulator
 {
+    private const string RabbitMqDeviceId = "battery-1";
+
     private enum DeviceSetupStage
     {
         None,
@@ -23,27 +28,32 @@ public sealed class BatterySimulator
     private readonly BatteryModel _battery;
     private readonly ConsoleDashboard _dashboard;
     private readonly SimulationMasterClient? _simulationMasterClient;
+    private readonly IRabbitMqPublisher _rabbitPublisher;
+    private readonly IRabbitMqConsumer _rabbitConsumer;
     private readonly List<DeviceLoad> _deviceLoads;
+    private readonly Random _random = new();
     private readonly List<IEnergyMeter> _meters;
     private readonly MeterReadingObservable _meterUpdates = new();
     private readonly SimulationHistory _history = new();
-    private AutoScenarioPhase? _activeAutoScenarioPhase;
+    private DateTime? _lastAutoDeviceSelectionHour;
     private DateTime _currentSimulationTime;
     private ControlMode _mode = ControlMode.Manual;
     private double _manualTargetPowerKW;
     private bool _paused;
     private bool _quit;
-    private bool _stepSizeChanged;
     private bool _pausedBeforeDeviceSetup;
     private DeviceSetupStage _deviceSetupStage;
     private int _devicesToConfigure;
     private int _nextDeviceNumber = 1;
     private string? _notice;
     private SimulationEnvironment? _masterEnvironment;
+    private DateTime? _lastAutoFaultChanceHour;
+    private DateTime? _automaticFaultResetTime;
     private bool _hasProcessedMasterStep;
     private bool _masterControlsPause;
     private BatteryModbusSnapshot? _modbusSnapshot;
     private long _modbusSequence;
+    private ChannelWriter<DeviceTelemetryMessage>? _rabbitTelemetryWriter;
 
     public IObservable<MeterReading> MeterUpdates => _meterUpdates;
     public SimulationHistory History => _history;
@@ -67,11 +77,25 @@ public sealed class BatterySimulator
             new NetPowerMeter(GetInflowPowerKW, () => TotalDeviceDemandKW)
         ];
         _dashboard = new ConsoleDashboard(options.ModbusPort, options.ModbusUnitId);
+        var rabbitMqConfiguration = RabbitMqConfiguration.CreateDefault();
+        _rabbitPublisher = new RabbitMqPublisher(rabbitMqConfiguration);
+        _rabbitConsumer = new RabbitMqConsumer(rabbitMqConfiguration);
     }
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         var commands = Channel.CreateUnbounded<string>();
+        var rabbitTelemetry = Channel.CreateBounded<DeviceTelemetryMessage>(new BoundedChannelOptions(1)
+        {
+            FullMode = BoundedChannelFullMode.DropOldest,
+            SingleReader = true,
+            SingleWriter = true
+        });
+        _rabbitTelemetryWriter = rabbitTelemetry.Writer;
+        using var rabbitCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var rabbitWorkerTask = Task.Run(
+            () => RunRabbitMqAsync(rabbitTelemetry.Reader, commands.Writer, rabbitCancellation.Token),
+            CancellationToken.None);
         var inputTask = Task.Run(async () =>
         {
             try
@@ -96,6 +120,8 @@ public sealed class BatterySimulator
             _history.RecordStateOfCharge(simulatedTime, _battery.StateOfChargePercent);
             PublishMeterReadings(meterReadings);
             await logger.WriteAsync(simulatedTime, _battery, meterReadings, cancellationToken);
+
+            QueueRabbitTelemetry();
 
             PublishModbusSnapshot();
             await using var modbusService = new BatteryModbusService(
@@ -199,7 +225,7 @@ public sealed class BatterySimulator
                             _currentSimulationTime,
                             0,
                             true,
-                            TimeSpan.FromSeconds(1));
+                            TimeSpan.FromMinutes(30));
                         if (_paused)
                         {
                             fallbackElapsed = TimeSpan.Zero;
@@ -216,7 +242,7 @@ public sealed class BatterySimulator
                         }
                     }
 
-                    if (SimulationTheme.CheckResize() || Stopwatch.GetElapsedTime(lastRenderTimestamp, now) >= TimeSpan.FromSeconds(1))
+                    if (Stopwatch.GetElapsedTime(lastRenderTimestamp, now) >= TimeSpan.FromSeconds(1))
                     {
                         RenderDashboard(simulatedTime, elapsed, _notice, masterStatus);
                         lastRenderTimestamp = now;
@@ -227,12 +253,23 @@ public sealed class BatterySimulator
             }
 
             _dashboard.Render(simulatedTime, elapsed, _options.Duration, _mode, _battery,
-                GetTargetPower(), _options.StepSize, _options.RealTimeStepInterval, _deviceLoads.Count,
+                GetTargetPower(), _deviceLoads.Count,
                 TotalDeviceDemandKW, _paused, _history.GetRollingSummary(), _notice, masterStatus);
         }
         finally
         {
+            rabbitCancellation.Cancel();
+            rabbitTelemetry.Writer.TryComplete();
+            try
+            {
+                await rabbitWorkerTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (rabbitCancellation.IsCancellationRequested)
+            {
+            }
             commands.Writer.TryComplete();
+            await _rabbitConsumer.DisposeAsync().ConfigureAwait(false);
+            await _rabbitPublisher.DisposeAsync().ConfigureAwait(false);
             _meterUpdates.Dispose();
             _ = inputTask;
         }
@@ -256,7 +293,7 @@ public sealed class BatterySimulator
         string? masterStatus = null)
     {
         _dashboard.Render(simulatedTime, elapsed, _options.Duration, _mode, _battery,
-            GetTargetPower(), _options.StepSize, _options.RealTimeStepInterval, _deviceLoads.Count,
+            GetTargetPower(), _deviceLoads.Count,
             TotalDeviceDemandKW, _paused, _history.GetRollingSummary(), notice, masterStatus);
     }
 
@@ -282,14 +319,49 @@ public sealed class BatterySimulator
         if (_mode != ControlMode.Auto)
             return;
 
-        var phase = AutoScenario.GetPhase(simulatedTime);
-        if (ReferenceEquals(phase, _activeAutoScenarioPhase))
+        var hourStart = GetHourStart(simulatedTime);
+        if (_lastAutoDeviceSelectionHour == hourStart)
             return;
 
+        _lastAutoDeviceSelectionHour = hourStart;
+        var previouslyConnected = _deviceLoads.ToArray();
+        var selectedProfiles = AutoScenario.SelectDeviceProfiles(simulatedTime, _random);
         _deviceLoads.Clear();
-        _deviceLoads.AddRange(phase.Devices);
-        _activeAutoScenarioPhase = phase;
-        _notice = $"Auto scenario: {phase.Name}; {phase.Devices.Count} device(s); net load {phase.TargetPowerKW:+0.0;-0.0;0.0} kW";
+
+        var vehicleIsConnected = AutoScenario.IsVehicleConnected(simulatedTime);
+        if (vehicleIsConnected)
+            TryConnectAutoDevice(new DeviceLoad("Auto charging", 2.3));
+
+        if (vehicleIsConnected && previouslyConnected.All(device => device.Name != "Auto charging"))
+        {
+            foreach (var device in previouslyConnected)
+                TryConnectAutoDevice(device);
+        }
+
+        foreach (var profile in selectedProfiles)
+        {
+            if (_deviceLoads.Any(device => device.Name == profile.Name))
+                continue;
+
+            TryConnectAutoDevice(profile);
+        }
+
+        _notice = $"Auto mode: {_deviceLoads.Count} device(s), {TotalDeviceDemandKW:F1} kW demand";
+    }
+
+    private bool TryConnectAutoDevice(DeviceLoad device)
+    {
+        if (_deviceLoads.Count >= SimulationOptions.MaximumDeviceCount ||
+            TotalDeviceDemandKW + device.PowerDemandKW > SimulationOptions.MaximumTotalDeviceDemandKW)
+            return false;
+
+        _deviceLoads.Add(device with { SocketNumber = _deviceLoads.Count + 1 });
+        return true;
+    }
+
+    private static DateTime GetHourStart(DateTime timestamp)
+    {
+        return new DateTime(timestamp.Year, timestamp.Month, timestamp.Day, timestamp.Hour, 0, 0, timestamp.Kind);
     }
 
     private static List<DeviceLoad> AssignSocketNumbers(IEnumerable<DeviceLoad> deviceLoads)
@@ -384,9 +456,11 @@ public sealed class BatterySimulator
         }
 
         if (!double.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out var powerKW) ||
-            !double.IsFinite(powerKW) || powerKW <= 0 || !double.IsFinite(TotalDeviceDemandKW + powerKW))
+            !double.IsFinite(powerKW) || powerKW <= 0 ||
+            !double.IsFinite(TotalDeviceDemandKW + powerKW) ||
+            TotalDeviceDemandKW + powerKW > SimulationOptions.MaximumTotalDeviceDemandKW)
         {
-            _notice = $"Enter a positive finite kW demand for device {_nextDeviceNumber}, then press Enter";
+            _notice = $"Enter a positive finite demand for device {_nextDeviceNumber} that keeps total demand at or below {SimulationOptions.MaximumTotalDeviceDemandKW} kW";
             return;
         }
 
@@ -405,8 +479,8 @@ public sealed class BatterySimulator
     private static bool IsControlCommand(string command)
     {
         return command is "quit" or "exit" or "toggle-pause" or "p" or "pause" or "resume" or "help" or
-            "power-up" or "power-down" or "step-up" or "step-down" or "auto" or "manual" or
-            "idle" or "fault" or "reset" or "discharge" or "disconnect" or "charge" or "step";
+            "power-up" or "power-down" or "auto" or "manual" or
+            "idle" or "fault" or "reset" or "discharge" or "disconnect" or "charge";
     }
 
     private double GetTargetPower()
@@ -414,12 +488,14 @@ public sealed class BatterySimulator
         if (_mode == ControlMode.Manual)
             return _manualTargetPowerKW;
 
-        return AutoScenario.GetPhase(_currentSimulationTime).TargetPowerKW;
+        return AutoScenario.GetTargetPowerKW(_currentSimulationTime);
     }
 
-    private double GetRequestedBatteryPowerKW()
+    private double GetTargetPower(DateTime simulatedTime)
     {
-        return GetTargetPower() - TotalDeviceDemandKW;
+        return _mode == ControlMode.Manual
+            ? _manualTargetPowerKW
+            : AutoScenario.GetTargetPowerKW(simulatedTime);
     }
 
     private double GetInflowPowerKW() => Math.Max(0, GetTargetPower());
@@ -468,18 +544,26 @@ public sealed class BatterySimulator
                     case "auto":
                         CancelDeviceConfiguration();
                         _mode = ControlMode.Auto;
-                        _activeAutoScenarioPhase = null;
+                        _lastAutoDeviceSelectionHour = null;
+                        _lastAutoFaultChanceHour = GetHourStart(_currentSimulationTime);
                         UpdateAutoScenario(_currentSimulationTime);
                         break;
                     case "manual":
                         CancelDeviceConfiguration();
                         _mode = ControlMode.Manual;
                         _manualTargetPowerKW = 0;
-                        _activeAutoScenarioPhase = null;
                         break;
                     case "charge":
                         CancelDeviceConfiguration();
                         _manualTargetPowerKW = ParsePower(argument, _battery.MaximumChargePowerKW);
+                        _mode = ControlMode.Manual;
+                        break;
+                    case "setpoint":
+                        CancelDeviceConfiguration();
+                        _manualTargetPowerKW = Math.Clamp(
+                            ParseSignedPower(argument),
+                            -_battery.MaximumDischargePowerKW,
+                            _battery.MaximumChargePowerKW);
                         _mode = ControlMode.Manual;
                         break;
                     case "power-up":
@@ -503,17 +587,7 @@ public sealed class BatterySimulator
                         break;
                     case "reset":
                         _battery.ResetFault();
-                        break;
-                    case "step":
-                        var minutes = ParsePositiveNumber(argument, "step size");
-                        if (minutes > _options.Duration.TotalMinutes)
-                            throw new ArgumentOutOfRangeException(nameof(argument), "Step size cannot exceed the simulation duration.");
-                        _options.StepSize = TimeSpan.FromMinutes(minutes);
-                        _stepSizeChanged = true;
-                        break;
-                    case "step-up":
-                    case "step-down":
-                        AdjustStepSize(command == "step-up" ? 1 : -1);
+                        _automaticFaultResetTime = null;
                         break;
                     case "quit":
                     case "exit":
@@ -577,14 +651,182 @@ public sealed class BatterySimulator
         if (delta <= TimeSpan.Zero)
             return;
 
-        UpdateAutoScenario(_currentSimulationTime);
-        _battery.Advance(GetRequestedBatteryPowerKW(), delta);
-        _currentSimulationTime = targetVirtualTime;
+        while (_currentSimulationTime < targetVirtualTime)
+        {
+            ResetAutomaticFaultIfDue(_currentSimulationTime);
+            UpdateAutoScenario(_currentSimulationTime);
+            ProcessAutomaticFaultChance(_currentSimulationTime);
+            var segmentEnd = Min(targetVirtualTime, GetHourStart(_currentSimulationTime).AddHours(1));
+            if (_automaticFaultResetTime is { } resetTime && resetTime > _currentSimulationTime)
+                segmentEnd = Min(segmentEnd, resetTime);
+            var targetAtStart = GetTargetPower(_currentSimulationTime);
+            var targetAtEnd = GetTargetPower(segmentEnd);
+            var averageTargetPowerKW = (targetAtStart + targetAtEnd) / 2;
+            _battery.Advance(averageTargetPowerKW - TotalDeviceDemandKW, segmentEnd - _currentSimulationTime);
+            _currentSimulationTime = segmentEnd;
+        }
+
+        ResetAutomaticFaultIfDue(_currentSimulationTime);
         var meterReadings = await ReadMetersAsync(_currentSimulationTime, cancellationToken);
         PublishMeterReadings(meterReadings);
         _history.RecordStateOfCharge(_currentSimulationTime, _battery.StateOfChargePercent);
         await logger.WriteAsync(_currentSimulationTime, _battery, meterReadings, cancellationToken);
+        QueueRabbitTelemetry();
         PublishModbusSnapshot();
+    }
+
+    private Task QueueRabbitMqCommandAsync(DeviceCommandMessage command, ChannelWriter<string> commands)
+    {
+        if ((!string.Equals(command.TargetDeviceId, RabbitMqDeviceId, StringComparison.OrdinalIgnoreCase) && command.TargetDeviceId != "*") ||
+            (!string.Equals(command.TargetDeviceType, "battery", StringComparison.OrdinalIgnoreCase) && command.TargetDeviceType != "*"))
+        {
+            return Task.CompletedTask;
+        }
+
+        string? commandLine = command.CommandType.ToLowerInvariant() switch
+        {
+            "setpoint" or "setpowerlimit" when double.IsFinite(command.Value) =>
+                $"setpoint {(command.Value / 1000d).ToString("R", CultureInfo.InvariantCulture)}",
+            "setmode" when string.Equals(command.StringPayload, "auto", StringComparison.OrdinalIgnoreCase) => "auto",
+            "setmode" when string.Equals(command.StringPayload, "manual", StringComparison.OrdinalIgnoreCase) => "manual",
+            "setmode" => command.Value > 0 ? "auto" : "manual",
+            "triggerfault" => "fault RabbitMQ command",
+            "resetfault" => "reset",
+            _ => null
+        };
+
+        if (commandLine is not null)
+            commands.TryWrite(commandLine);
+
+        return Task.CompletedTask;
+    }
+
+    private void QueueRabbitTelemetry()
+    {
+        var writer = _rabbitTelemetryWriter;
+        if (writer is null)
+            return;
+
+        const double batteryVoltage = 400;
+        var isFaulted = _battery.State == BatteryState.Fault;
+        var telemetry = new DeviceTelemetryMessage
+        {
+            DeviceId = RabbitMqDeviceId,
+            DeviceType = "battery",
+            Timestamp = DateTime.UtcNow,
+            VirtualTime = ((DateTimeOffset)_currentSimulationTime).ToUnixTimeSeconds(),
+            OperatingState = isFaulted ? (short)3 : _battery.CurrentPowerKW == 0 ? (short)0 : (short)2,
+            ErrorCode = isFaulted ? (short)1 : (short)0,
+            ActivePowerWatts = _battery.CurrentPowerKW * 1000d,
+            CumulativeEnergyKwh = _battery.ChargedEnergyKWh + _battery.DischargedEnergyKWh,
+            IsOn = true,
+            ModbusPort = _options.ModbusPort,
+            ModbusUnitId = _options.ModbusUnitId
+        };
+
+        telemetry.SetMetric("BatterySOC", _battery.StateOfChargePercent);
+        telemetry.SetMetric("BatteryVoltage", batteryVoltage);
+        telemetry.SetMetric("BatteryCurrent", _battery.CurrentPowerKW * 1000d / batteryVoltage);
+        telemetry.SetMetric("ChargeEnergyKwh", _battery.ChargedEnergyKWh);
+        telemetry.SetMetric("DischargeEnergyKwh", _battery.DischargedEnergyKWh);
+        telemetry.SetMetric("SetpointKW", GetTargetPower());
+
+        writer.TryWrite(telemetry);
+    }
+
+    private async Task RunRabbitMqAsync(
+        ChannelReader<DeviceTelemetryMessage> telemetry,
+        ChannelWriter<string> commands,
+        CancellationToken cancellationToken)
+    {
+        var subscriptionRegistered = false;
+        var publisherStarted = false;
+        var consumerStarted = false;
+
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                if (!publisherStarted || !_rabbitPublisher.IsConnected)
+                {
+                    publisherStarted = await TryStartRabbitComponentAsync(
+                        () => _rabbitPublisher.StartAsync(cancellationToken), cancellationToken).ConfigureAwait(false);
+                }
+
+                if (!consumerStarted || !_rabbitConsumer.IsConnected)
+                {
+                    consumerStarted = await TryStartRabbitComponentAsync(
+                        () => _rabbitConsumer.StartAsync(cancellationToken), cancellationToken).ConfigureAwait(false);
+                    if (!subscriptionRegistered)
+                    {
+                        await _rabbitConsumer.SubscribeCommandsAsync(
+                            $"sim.commands.*.{RabbitMqDeviceId}",
+                            command => QueueRabbitMqCommandAsync(command, commands),
+                            cancellationToken).ConfigureAwait(false);
+                        subscriptionRegistered = true;
+                    }
+                }
+
+                if (_rabbitPublisher.IsConnected && telemetry.TryRead(out var message))
+                {
+                    await _rabbitPublisher.PublishTelemetryAsync(message, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private static async Task<bool> TryStartRabbitComponentAsync(Func<Task> start, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await start().ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+        }
+
+        return true;
+    }
+
+    private static DateTime Min(DateTime first, DateTime second) => first <= second ? first : second;
+
+    private void ProcessAutomaticFaultChance(DateTime simulatedTime)
+    {
+        if (_mode != ControlMode.Auto)
+            return;
+
+        var hourStart = GetHourStart(simulatedTime);
+        if (_lastAutoFaultChanceHour == hourStart)
+            return;
+
+        _lastAutoFaultChanceHour = hourStart;
+        if (_battery.State != BatteryState.Fault && _random.NextDouble() < 0.01)
+        {
+            _battery.InjectFault("Automatic error (1% hourly chance)");
+            _automaticFaultResetTime = simulatedTime.AddMinutes(30);
+            _notice = "Automatic error; repair is scheduled in 30 virtual minutes";
+        }
+    }
+
+    private void ResetAutomaticFaultIfDue(DateTime simulatedTime)
+    {
+        if (_automaticFaultResetTime is not { } resetTime || simulatedTime < resetTime)
+            return;
+
+        _battery.ResetFault();
+        _automaticFaultResetTime = null;
+        _notice = "Automatic error repaired";
     }
 
     private void PublishModbusSnapshot()
@@ -637,19 +879,6 @@ public sealed class BatterySimulator
         _mode = ControlMode.Manual;
     }
 
-    private void AdjustStepSize(double adjustmentMinutes)
-    {
-        var minimumMinutes = Math.Min(1, _options.Duration.TotalMinutes);
-        var maximumMinutes = _options.Duration.TotalMinutes;
-        var minutes = Math.Clamp(_options.StepSize.TotalMinutes + adjustmentMinutes, minimumMinutes, maximumMinutes);
-        if (minutes != _options.StepSize.TotalMinutes)
-        {
-            _options.StepSize = TimeSpan.FromMinutes(minutes);
-            _stepSizeChanged = true;
-        }
-
-    }
-
     private static double ParsePower(string argument, double defaultValue)
     {
         if (string.IsNullOrWhiteSpace(argument))
@@ -657,6 +886,14 @@ public sealed class BatterySimulator
 
         var power = ParsePositiveNumber(argument, "power");
         return power;
+    }
+
+    private static double ParseSignedPower(string argument)
+    {
+        if (!double.TryParse(argument, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) || !double.IsFinite(value))
+            throw new ArgumentException("Provide a finite signed power value using invariant numeric format.");
+
+        return value;
     }
 
     private static double ParsePositiveNumber(string argument, string name)

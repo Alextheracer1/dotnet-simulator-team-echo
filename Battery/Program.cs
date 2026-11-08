@@ -1,3 +1,4 @@
+using Battery.Battery;
 using Battery.Simulation;
 using TeamConsoleShared;
 
@@ -11,15 +12,14 @@ namespace Battery
 
             var options = new SimulationOptions
             {
-                CapacityKWh = 200,
-                MaximumChargePowerKW = 50,
-                MaximumDischargePowerKW = 50,
+                CapacityKWh = BatteryModel.HardwareMaximumCapacityKWh,
+                MaximumChargePowerKW = BatteryModel.HardwareMaximumChargePowerKW,
+                MaximumDischargePowerKW = BatteryModel.HardwareMaximumDischargePowerKW,
                 InitialStateOfChargePercent = 0,
-                StepSize = TimeSpan.FromMinutes(15),
                 StartTime = DateTime.Today,
                 Duration = SimulationOptions.DefaultDuration,
                 CsvPath = Path.Combine("data", "battery-run.csv"),
-                ModbusPort = GetPortFromEnvironment("BATTERY_MODBUS_PORT", 1502)
+                ModbusPort = GetPortFromEnvironment("BATTERY_MODBUS_PORT", SimulationOptions.DefaultModbusPort)
             };
 
             using var cancellationTokenSource = new CancellationTokenSource();

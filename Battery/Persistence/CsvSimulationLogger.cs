@@ -7,14 +7,17 @@ namespace Battery.Persistence;
 
 public sealed class CsvSimulationLogger : IAsyncDisposable
 {
+    private static readonly TimeSpan FlushInterval = TimeSpan.FromHours(3);
     private readonly StreamWriter _writer;
+    private DateTime? _lastFlushVirtualTime;
 
     public CsvSimulationLogger(string path)
     {
         var fullPath = Path.GetFullPath(path);
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
         _writer = new StreamWriter(fullPath, append: false);
-        _writer.WriteLine("date,time,soc_percent,soc_kwh,power_kw,state,charged_kwh,discharged_kwh,error,battery_meter_kw,device_demand_kw,net_power_kw");
+        _writer.WriteLine("datetime,soc_percent,soc_kwh,power_kw,state,charged_kwh,discharged_kwh,error,battery_meter_kw,device_demand_kw,net_power_kw");
+        _writer.Flush();
     }
 
     public async Task WriteAsync(
@@ -26,8 +29,7 @@ public sealed class CsvSimulationLogger : IAsyncDisposable
         var readingsByType = meterReadings.ToDictionary(reading => reading.MeterType, reading => reading.Value);
         var values = new[]
         {
-            timestamp.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            timestamp.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+            timestamp.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
             battery.StateOfChargePercent.ToString("F2", CultureInfo.InvariantCulture),
             battery.StateOfChargeKWh.ToString("F2", CultureInfo.InvariantCulture),
             battery.CurrentPowerKW.ToString("F2", CultureInfo.InvariantCulture),
@@ -49,11 +51,21 @@ public sealed class CsvSimulationLogger : IAsyncDisposable
         }
 
         await _writer.WriteLineAsync(line.ToString().AsMemory(), cancellationToken);
-        await _writer.FlushAsync(cancellationToken);
+        if (_lastFlushVirtualTime is null)
+        {
+            _lastFlushVirtualTime = timestamp;
+            await _writer.FlushAsync(cancellationToken);
+        }
+        else if (timestamp - _lastFlushVirtualTime.Value >= FlushInterval)
+        {
+            await _writer.FlushAsync(cancellationToken);
+            _lastFlushVirtualTime = timestamp;
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
+        await _writer.FlushAsync();
         await _writer.DisposeAsync();
     }
 
