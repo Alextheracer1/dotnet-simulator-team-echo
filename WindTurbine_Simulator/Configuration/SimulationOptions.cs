@@ -12,6 +12,8 @@ public sealed class SimulationOptions
     public double RotorAreaM2 { get; init; } = 8000.0;
     public double PowerCoefficient { get; init; } = 0.42;
     public double RatedPowerKw { get; init; } = 3000.0;
-    public int ModbusPort { get; init; } = 1504; // Eigener Port für das Windrad
+    public int ModbusPort { get; init; } = 1505; // Eigener Port für das Windrad (1505)
     public byte ModbusUnitId { get; init; } = 1;
+    public double Latitude { get; init; } = 47.77;
+    public double Longitude { get; init; } = 13.09;
 }

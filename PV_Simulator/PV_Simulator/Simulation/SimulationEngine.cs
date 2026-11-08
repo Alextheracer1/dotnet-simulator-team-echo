@@ -2,6 +2,7 @@ using System;
 using PV_Simulator.Calculations;
 using PV_Simulator.Domain;
 using PV_Simulator.Weather;
+using TeamShared.Weather;
 
 namespace PV_Simulator.Simulation;
 
@@ -85,7 +86,7 @@ public sealed class SimulationEngine
         return AdvanceTo(simulatedAt, timeStep);
     }
 
-    public SimulationSnapshot AdvanceTo(DateTimeOffset simulatedAt, TimeSpan timeStep)
+    public SimulationSnapshot AdvanceTo(DateTimeOffset simulatedAt, TimeSpan timeStep, WeatherSnapshotDto? externalWeather = null)
     {
         if (timeStep <= TimeSpan.Zero)
         {
@@ -100,8 +101,23 @@ public sealed class SimulationEngine
         }
 
         _stepNumber++;
-        var weather = _weatherEngine.Advance(simulatedAt, timeStep);
-        var solarPosition = _solarPositionCalculator.Calculate(_location, simulatedAt);
+
+        WeatherConditions weather;
+        SolarPosition solarPosition;
+
+        if (externalWeather != null)
+        {
+            var cloudFraction = Math.Clamp(externalWeather.CloudCoverPercent / 100.0, 0.0, 1.0);
+            var precipitation = externalWeather.PrecipitationMm > 0 ? Precipitation.Rain : Precipitation.None;
+            weather = new WeatherConditions(cloudFraction, externalWeather.TemperatureC, precipitation);
+            solarPosition = new SolarPosition(externalWeather.Elevation, externalWeather.Azimuth);
+        }
+        else
+        {
+            weather = _weatherEngine.Advance(simulatedAt, timeStep);
+            solarPosition = _solarPositionCalculator.Calculate(_location, simulatedAt);
+        }
+
         var irradiance = _powerCalculator.CalculatePlaneOfArrayIrradiance(solarPosition, _array, weather);
         UpdateInverterStatus(timeStep, irradiance);
         var power = _powerCalculator.CalculatePowerKilowatts(

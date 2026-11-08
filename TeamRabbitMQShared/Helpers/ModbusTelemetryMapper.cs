@@ -86,6 +86,30 @@ public static class ModbusTelemetryMapper
                 msg.SetMetric("BatteryCurrent", curr);
             }
         }
+        else if (deviceType.Equals("pv", StringComparison.OrdinalIgnoreCase))
+        {
+            if (holdingRegisters.Length > CommonRegisterMap.DeviceSpecificStart + 5)
+            {
+                float irradiance = GetFloat(CommonRegisterMap.DeviceSpecificStart, CommonRegisterMap.DeviceSpecificStart + 1);
+                float temp = GetFloat(CommonRegisterMap.DeviceSpecificStart + 2, CommonRegisterMap.DeviceSpecificStart + 3);
+                float clouds = GetFloat(CommonRegisterMap.DeviceSpecificStart + 4, CommonRegisterMap.DeviceSpecificStart + 5);
+                msg.SetMetric("Irradiance", irradiance);
+                msg.SetMetric("Temperature", temp);
+                msg.SetMetric("CloudCover", clouds);
+            }
+        }
+        else if (deviceType.Equals("wind", StringComparison.OrdinalIgnoreCase))
+        {
+            if (holdingRegisters.Length > CommonRegisterMap.DeviceSpecificStart + 5)
+            {
+                float windSpeed = GetFloat(CommonRegisterMap.DeviceSpecificStart, CommonRegisterMap.DeviceSpecificStart + 1);
+                float rotorRpm = GetFloat(CommonRegisterMap.DeviceSpecificStart + 2, CommonRegisterMap.DeviceSpecificStart + 3);
+                float pitch = GetFloat(CommonRegisterMap.DeviceSpecificStart + 4, CommonRegisterMap.DeviceSpecificStart + 5);
+                msg.SetMetric("WindSpeed", windSpeed);
+                msg.SetMetric("RotorRpm", rotorRpm);
+                msg.SetMetric("PitchAngle", pitch);
+            }
+        }
 
         return msg;
     }

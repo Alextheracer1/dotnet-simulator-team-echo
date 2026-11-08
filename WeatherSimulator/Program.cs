@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using TeamShared.Simulation;
+using TeamShared.Weather;
 using WeatherSimulator.Models;
 using WeatherSimulator.Services;
 
@@ -39,6 +40,9 @@ if (resolvedCsvPath == null)
 }
 
 // Services registrieren
+builder.Services.AddHttpClient("WeatherPusher");
+builder.Services.AddSingleton<IWeatherClientRegistry, WeatherClientRegistry>();
+builder.Services.AddSingleton<IWeatherSnapshotPusher, WeatherSnapshotPusher>();
 builder.Services.AddSingleton<ISolarPositionCalculator, SolarPositionCalculator>();
 builder.Services.AddSingleton<IWeatherCsvParser, WeatherCsvParser>();
 builder.Services.AddSingleton<WeatherSimulationClock>();
@@ -121,6 +125,27 @@ app.MapGet("/api/weather", (
     return Results.Ok(result);
 });
 
+// Registrierung für Feldgeräte (PV, Wind)
+app.MapPost("/api/weather/register", (DeviceWeatherRegistration registration, IWeatherClientRegistry registry) =>
+{
+    if (string.IsNullOrWhiteSpace(registration.DeviceId) || string.IsNullOrWhiteSpace(registration.CallbackUrl))
+    {
+        return Results.BadRequest(new { error = "DeviceId und CallbackUrl sind Pflichtfelder." });
+    }
+
+    registry.Register(registration);
+    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Weather Register] Feldgerät registriert: {registration.DeviceId} ({registration.DeviceType}) @ {registration.CallbackUrl} ({registration.Latitude:F2}, {registration.Longitude:F2})");
+    return Results.Ok(new
+    {
+        status = "Registered",
+        deviceId = registration.DeviceId,
+        deviceType = registration.DeviceType,
+        callbackUrl = registration.CallbackUrl
+    });
+});
+
+app.MapGet("/api/weather/clients", (IWeatherClientRegistry registry) => Results.Ok(registry.GetAll()));
+
 app.Run();
 
 // Helper-Methoden
@@ -165,6 +190,7 @@ static void PrintStartupBanner(int port, string csvPath, WeatherDataset dataset)
     Console.WriteLine("                  WeatherSimulator - Digital Twin Weather Provider              ");
     Console.WriteLine("================================================================================");
     Console.WriteLine($" Local Endpoint : http://localhost:{port}/api/weather");
+    Console.WriteLine($" Push Register  : http://localhost:{port}/api/weather/register");
     Console.WriteLine($" CSV Data Source: {csvPath}");
     Console.WriteLine($" Total Records  : {dataset.TotalRecords:N0} Zeilen");
     Console.WriteLine($" Locations      : {dataset.SeriesByLocation.Count} Standort(e)");

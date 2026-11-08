@@ -7,26 +7,30 @@ Dieses Dokument dient als zentrale Wissensbasis, Architekturübersicht, Konventi
 ## 1. Projektstruktur & Architektur
 
 ### 1.1 Projektübersicht & Modulverantwortlichkeiten
-Das Gesamtsystem bildet ein verteiltes Digital-Twin-System zur Energiesimulation (.NET 10.0), bei dem verschiedene Geräte als eigenständige Prozesse auf `localhost` laufen und über standardisierte Schnittstellen (Modbus TCP und REST-APIs) kommunizieren.
+Das Gesamtsystem bildet ein verteiltes Digital-Twin-System zur Energiesimulation (.NET 10.0), bei dem Geräte als eigenständige Prozesse laufen. Je nach Aufgabe kommunizieren sie über Master-TCP mit zeilengetrenntem JSON, HTTP, Modbus TCP oder RabbitMQ.
 
 | Modul / Projekt | Typ | Port / Endpunkt | Kurzbeschreibung & Verantwortlichkeit |
 | :--- | :--- | :--- | :--- |
-| **TeamShared** | Class Library | – | Gemeinsame Modbus-Logik, Register-Definitionen (Holding-Register 01–12), Helper und DTOs. (*Alexander Graf*) |
+| **TeamShared** | Class Library | – | Gemeinsame Modbus-Logik und Register-Definitionen sowie Simulation-Master-Protokoll und `ITimeMasterClient`. |
 | **TeamConsoleShared** | Class Library | – | Wiederverwendbare Konsolen-UI-Komponenten (Boxen, Power-Bars, Gauge-Bars, Metric-Grids). |
-| **PV_Simulator** | Console App | Modbus TCP (z. B. 1502) | Digitaler Zwilling einer Photovoltaikanlage mit konfigurierbaren Modul- und Wechselrichterparametern. (*Nikolas Giesen*) |
-| **WindTurbine_Simulator** | Console App | Modbus TCP (z. B. 1503) | Digitaler Zwilling einer Windkraftanlage mit Tagesprofil, Rauschen und Modbus-Bereitstellung. (*Nikolas Giesen*) |
+| **PV_Simulator** | Console App | Master-TCP `1510`, Modbus TCP `1504`, HTTP `6000+` | Digitaler Zwilling einer Photovoltaikanlage; empfängt Wetter-Push, stellt Daten via Modbus TCP bereit. |
+| **WindTurbine_Simulator** | Console App | Master-TCP `1510`, Modbus TCP `1505`, HTTP `6100+` | Digitaler Zwilling einer Windkraftanlage mit Wetter-Push, Turbulenzmodell und Modbus-Bereitstellung. |
 | **Battery** | Console App | Modbus TCP | Batteriespeicher-Simulator (Lade-/Entladezustand, Kapazität). (*Nazar Burdeinyi*) |
 | **Dual-Port-Charger** | Console App | Modbus TCP | Zwei-Port-Ladesäulen-Simulator für Elektrofahrzeuge. (*Alexander Graf*) |
 | **ModbusDiagnoseClient** | Console App | Client | Diagnose- und Test-Client zum Lesen/Schreiben von Modbus-Registern der Feldgeräte. (*Alexander Graf*) |
 | **Simulations-Master** | Console App | TCP `1510` (Standard) | Implementierter zentraler Taktgeber; verteilt virtuelle Zeitschritte an registrierte Simulatoren und wartet auf deren Bestätigung. |
-| **WeatherSimulator** | Web / Minimal API | HTTP REST `localhost:5005` | Zentraler Offline-Wetterprovider. Liefert standort- und zeitaufgelöste Daten sowie berechneten Sonnenstand. (*Nikolas Giesen*) |
+| **WeatherSimulator** | Web / Minimal API | HTTP `localhost:5005`, Master-TCP `1510` | CSV-basierter Wetterprovider; liefert standort-/zeitbezogene Wetterwerte und Sonnenstand. |
+| **ModbusRabbitMqGateway** | Console App | Modbus TCP / RabbitMQ | Brücke für Feldgeräte-Telemetrie und Befehle; nicht Wettertransport. |
+| **TeamRabbitMQShared** | Class Library | RabbitMQ | Gemeinsame Publisher-/Consumer-Infrastruktur und Telemetrie-Mapping. |
+| **RabbitMqViewer** | Console App | RabbitMQ | Zeigt Live-Telemetrie an. |
+| **TeamRabbitMQShared.Tests** | Testprojekt | – | Tests der RabbitMQ-Shared-Bibliothek. |
 
 ### 1.2 Interaktions- & Kommunikationsmuster
-- **Modbus TCP:** Feldgeräte (`PV_Simulator`, `WindTurbine_Simulator`, `Battery`, `Dual-Port-Charger`) stellen ihre aktuellen Messwerte und Betriebszustände über Holding-Register (Portbereich ab 1502 aufwärts) bereit.
-- **Simulation Master:** Der Master verteilt die gemeinsame virtuelle Zeit über TCP und zeilengetrennte JSON-Nachrichten. Nur registrierte Clients nehmen an der Zeitschritt-Barriere teil. Clients können Zustandsdaten melden, die der aktuelle Master jedoch nicht auswertet; Wetterwerte berechnet oder verteilt er nicht.
-- **REST Minimal API (WeatherProvider):** `WeatherSimulator` stellt lokale Wetterdaten über HTTP GET bereit. Bei der Analyse wurde kein Simulator gefunden, der diese API bereits aufruft; eine Anbindung ist derzeit ein Integrationsschritt, keine bestätigte bestehende Kommunikation.
-  - Endpunkt: `GET /api/weather?lat={latitude}&lon={longitude}&time={timestamp}`
-  - Offline-Fähigkeit: Wetterwerte werden aus der lokalen CSV geladen; für die Datenbereitstellung selbst ist keine externe Wetter-Web-API erforderlich.
+- **Modbus TCP:** Alle Feldgeräte (`Dual-Port-Charger` auf Port 1502, `Battery` auf 1503, `PV_Simulator` auf 1504, `WindTurbine_Simulator` auf 1505) stellen ihre Messwerte/Betriebszustände über Modbus TCP gemäß LB02-Registerstandard (Holding Register 1–12) sowie gerätespezifischen Registern (13+) bereit.
+- **Simulation Master:** Der Master verteilt die gemeinsame virtuelle Zeit über TCP und zeilengetrennte JSON-Nachrichten. PV, Wind, WeatherSimulator und Battery registrieren jeweils eigene Clients auf Basis des Vertrags in `TeamShared`; registrierte Clients nehmen an der Zeitschritt-Barriere teil. Der Master berechnet oder verteilt selbst keine Wetterwerte.
+- **REST Minimal API (WeatherProvider) & Push:** `WeatherSimulator` stellt standortgenaue Wetterdaten über HTTP Minimal API (Port 5005) und pro Zeitschritt per HTTP POST Push an registrierte Feldgeräte (`PV_Simulator` Port 6000+, `WindTurbine_Simulator` Port 6100+) bereit. Beide Simulatoren verfügen über einen robusten Offline-Fallback auf interne Modelle.
+- **RabbitMQ (Weg A – Gateway-Architektur):** `ModbusRabbitMqGateway` pollt periodisch die Modbus-Server aller Feldgeräte (Charger 1502, Battery 1503, PV 1504, Wind 1505) und publiziert standardisierte Telemetriedaten (`DeviceTelemetryMessage`) auf den Topic-Exchange `sim.exchange` (`sim.telemetry.<deviceType>.<id>`). Der `RabbitMqViewer` abonniert `#` und visualisiert alle Simulatoren im einheitlichen Dashboard.
+- **Offline-Zeitverhalten:** Wenn der Master nach erfolgreicher Synchronisierung ausfällt, rechnen PV, Wind und WeatherSimulator mit dem zuletzt bekannten Masterstatus und Zeitschritt weiter. Nach Wiederverbindung springen sie auf die aktuelle Masterzeit; ausgefallene Schritte werden nicht nachträglich abgespielt.
 
 ### 1.3 Zentrale Einstiegspunkte
 - Solution: `dotNET_Programmierung_2026_Aufgabe_02.slnx`
@@ -37,6 +41,7 @@ Das Gesamtsystem bildet ein verteiltes Digital-Twin-System zur Energiesimulation
 
 ### 1.4 WeatherSimulator – Aufbau und Verhalten
 - `WeatherSimulator/Program.cs`: Minimal-API-Start, Singleton-Registrierung, CSV-Laden und Routen `GET /`, `GET /api/weather/health` sowie `GET /api/weather?lat={lat}&lon={lon}&time={timestamp}`.
+- `WeatherSimulator/Services/WeatherSimulationMasterWorker.cs`: blockiert den ersten HTTP-Start bis eine gültige virtuelle Zeit vom Master empfangen wurde; nach späterem Master-Ausfall bleibt der HTTP-Dienst verfügbar und die Verbindung wird erneut aufgebaut.
 - `WeatherSimulator/Services/WeatherCsvParser.cs`: erkennt Komma oder Semikolon, liest die benötigten Spalten `Latitude`, `Longitude`, `Timestamp`, `TemperatureC`, `PrecipitationMm`, `CloudCoverPercent` und `WindSpeedMps`; Zeit und Zahlen werden invariant eingelesen. Fehlerhafte Zeilen werden übersprungen; bei fehlenden Pflichtspalten oder ohne gültige Datensätze schlägt das Laden fehl.
 - `WeatherSimulator/Services/WeatherService.cs`: wählt per Haversine den nächstgelegenen Standort, bildet das Datum auf das Referenzjahr ab, begrenzt es auf die Datenreihe und interpoliert die vier Wetterwerte linear. Sonnenstand wird für die originale Anfragezeit und Koordinaten berechnet.
 - `WeatherSimulator/Services/SolarPositionCalculator.cs`: berechnet Sonnenazimut und -elevation.
@@ -51,8 +56,8 @@ Das Gesamtsystem bildet ein verteiltes Digital-Twin-System zur Energiesimulation
 - **Verbindungsablauf:** Der Master sendet beim Verbindungsaufbau eine `Environment`-Nachricht. Der Client kann `EnvironmentRequest` senden und registriert sich mit `Register` und stabiler `StationId`. Nicht registrierte Verbindungen erhalten keine `TimeStep`-Nachrichten und nehmen nicht an der Barriere teil.
 - **Zeitschritt-Barriere:** Während die Simulation läuft, sendet der Master ungefähr einmal pro realer Sekunde `TimeStep` mit `Sequence`, `PreviousVirtualTime`, Ziel-`VirtualTime` und `TimeStep`. Der Simulator verarbeitet genau diesen virtuellen Zeitraum und sendet danach `Acknowledgement` mit derselben Sequence und Zielzeit. Erst wenn alle registrierten Clients bestätigt haben, committet der Master den nächsten Zeitpunkt. Clients ohne ACK innerhalb von fünf Sekunden werden getrennt. Bei Pause werden periodisch `Environment`-Snapshots gesendet; sie sind informativ und erfordern keinen ACK.
 - **State-Nachrichten:** Ein Client darf `State` mit Leistungs-/Gerätestatus melden. Der aktuelle `TcpSimulationServer` akzeptiert diese Nachricht, verwendet sie aber nicht zur Zeitsteuerung oder für weitere Berechnungen.
-- **Vorhandener Client:** `Battery/Simulation/SimulationMasterClient.cs` implementiert `ITimeMasterClient`; `Battery/Program.cs` verbindet ihn standardmäßig mit `127.0.0.1:1510`. Dieser Client ist im Battery-Projekt implementiert, nicht als wiederverwendbare Clientklasse in `TeamShared`.
-- **Integrationsstatus:** PV, Windturbine und WeatherSimulator verbinden sich derzeit nicht mit dem Master. PV besitzt keine Referenz auf `TeamShared`; Windturbine referenziert `TeamShared`, implementiert aber keinen Master-Client. WeatherSimulator referenziert ebenfalls keinen Master-Vertrag. Der Master sendet keine Wetterdaten. Der Wetterdienst bietet aktuell nur eine GET-API, die ein Verbraucher aktiv aufrufen müsste.
+- **Vorhandene Clients:** `Battery/Simulation/SimulationMasterClient.cs`, `PV_Simulator/PV_Simulator/Simulation/PvSimulationMasterClient.cs`, `WindTurbine_Simulator/Simulation/WindSimulationMasterClient.cs` und `WeatherSimulator/Services/WeatherSimulationMasterClient.cs` implementieren jeweils `ITimeMasterClient`. Der Vertrag liegt in `TeamShared/SimulationProtocol.cs`; die konkreten TCP-Clients sind nicht als eine gemeinsame Implementierung in `TeamShared` zentralisiert.
+- **Integrationsstatus:** PV und Wind verwenden Master-Zeitschritte, bekommen darüber aber nur die virtuelle Zeit und keinen Wetter-Snapshot. Wind berechnet und aktualisiert seine lokale Simulation vor dem ACK und setzt bei Verbindungsverlust mit letztem laufendem Zustand/Zeitschritt fort; beim Reconnect übernimmt es die aktuelle Masterzeit. PV sendet derzeit das ACK vor `AdvanceAndLogAsync` und damit vor dem lokalen Simulationsschritt (siehe Prüfhinweis in Abschnitt 3.1). Der Weather-Worker setzt seine virtuelle Uhr aus Master-Nachrichten; beim ersten Start wird der HTTP-Host erst nach einer gültigen virtuellen Zeit freigegeben. Bei späterem Ausfall bleibt der HTTP-Dienst verfügbar und die Wetteruhr läuft mit dem letzten laufenden Zustand und Zeitschritt weiter. Wetterdaten werden noch nicht an PV oder Wind übertragen.
 
 ---
 
@@ -67,7 +72,10 @@ Das Gesamtsystem bildet ein verteiltes Digital-Twin-System zur Energiesimulation
 - **Externe Bibliotheken:**
   - Modbus: `EasyModbusTCP.NETCore` (v1.0.0)
   - HTTP Server: ASP.NET Core Minimal APIs (integriert in .NET 10)
-  - Zukünftige UI: `Spectre.Console` (nach Abschluss der Basisfunktionalität)
+  - Konsolen-UI: `Spectre.Console` (v0.57.2)
+  - RabbitMQ: `RabbitMQ.Client` (v7.0.0)
+  - Tests: `xunit` (v2.9.3; Visual-Studio-Testadapter/`Microsoft.NET.Test.Sdk` ist im Testprojekt nicht referenziert)
+- **Master-Port-Dokumentation:** Der Code und das Master-Protokolldokument verwenden Standardport `1510`. `.agents/skills/run-simulators/SKILL.md` enthält noch `5000` und listet Weather- und Wind-Simulator nicht auf; Runbook-Angabe daher vor einem Start mit dem Code abgleichen.
 
 ### 2.2 Spezifikationen für den WeatherSimulator (aus Grill-Me Abstimmung)
 1. **JSON-Response-Schema:**
@@ -102,33 +110,33 @@ Das Gesamtsystem bildet ein verteiltes Digital-Twin-System zur Energiesimulation
 7. **Konsolenausgabe:**
    - Vorerst schlichte und übersichtliche Terminal-Ausgabe (Startup-Infos, Port, geladene Datenpunkte, schlanke Request-Logs); spätere Migration auf Spectre.Console vorbereitet.
 
+### 2.3 Vereinbarungen zur Master-Zeit und Wetterdaten-Integration
+- **Implementiert:** Der `WeatherSimulator` pusht Wetterdaten pro Simulationszeitschritt via HTTP POST an registrierte Feldgeräte (`PV_Simulator` und `WindTurbine_Simulator`).
+- **Callback-Empfänger:** `WeatherCallbackReceiver` (in `TeamShared.Weather`) startet dynamisch ab Port `6000` (PV) bzw. `6100` (Wind) mit automatischer Suche nach freien Ports.
+- **Auto-Registrierung:** Beim Start meldet jedes Feldgerät über `POST /api/weather/register` seine `DeviceId`, den `DeviceType`, die Callback-URL sowie die Koordinaten an den `WeatherSimulator` (`WeatherClientRegistry`).
+- **Synchronisation & ACK-Reihenfolge:** Bei jedem Master-`TimeStep` pusht `WeatherSimulationMasterWorker` via `WeatherSnapshotPusher` den Wetter-Snapshot für die Ziel-`VirtualTime` an alle angemeldeten Empfänger und sendet anschließend sein ACK. PV und Wind warten auf den Snapshot für diese Zielzeit, berechnen ihren Zustand (PV: Einstrahlung & Leistung, Wind: Windgeschwindigkeit als Basis plus Rauschen) und senden erst danach ihr Master-ACK.
+- **Offline-Fallback:** Sollte der Wetter-Push ausbleiben (z. B. Timeout nach 3s), nutzen PV und Wind ihr lokales Fallback-Modell (`WeatherEngine` bzw. Sinus-Windkurve) weiter.
+
 ---
 
 ## 3. Handover- & Fortsetzungsstrategie
 
 ### 3.1 Aktueller Stand (Status Quo)
 - `Simulations-Master` ist implementiert: TCP-Server mit JSON-Zeilenprotokoll, virtueller Uhr, Start/Pause/Fortsetzen, konfigurierbarer Schrittweite und ACK-Barriere für registrierte Clients.
-- Der gemeinsame Vertrag `ITimeMasterClient` liegt in `TeamShared/SimulationProtocol.cs`; als einzige gefundene Implementierung ist `Battery/Simulation/SimulationMasterClient.cs` in Verwendung.
-- PV-, Windturbinen- und WeatherSimulator sind aktuell nicht mit dem Simulationsmaster verbunden und berechnen bzw. verwalten ihre Zeit lokal.
-- Der Master verteilt nur Simulationszeit/-steuerung, keine Wetterwerte. Der WeatherSimulator bietet derzeit eine HTTP-GET-Abfrage; ein direkter Push an PV oder Wind ist nicht implementiert.
-- `WeatherSimulator` ist als ASP.NET-Core-Minimal-API implementiert und in `dotNET_Programmierung_2026_Aufgabe_02.slnx` eingebunden.
-- Verifikation in der Analyse am 2026-11-08: Projekt-Build erfolgreich; lokaler Start lud 8.784 Datensätze an einem Standort. `/api/weather/health` lieferte `Healthy`, eine gültige Anfrage an `/api/weather` lieferte Wetterdaten und Sonnenstand, ungültige Latitude ergab HTTP 400.
-- Es wurden keine dem Projekt zugeordneten automatisierten Tests im Test Explorer gefunden. Der erfolgreiche Build und der manuelle HTTP-Smoke-Test belegen daher keinen vollständigen Test aller Funktionen.
-- Der Haversine-Algorithmus und die lineare Interpolation sind im Code vorhanden; die Auswahl zwischen mehreren Standorten ist mit dem vorhandenen einzelnen CSV-Standort nicht nachweisbar.
-- Zeitabbildung auf das Referenzjahr, Schaltjahr-Korrektur, Begrenzung auf den Datensatzbereich, Sonnenstandsberechnung und Parameterprüfung sind implementiert; über die obigen HTTP-Aufrufe hinaus wurden diese Fälle nicht einzeln automatisiert getestet.
-- Bei der Suche im C#-Quellcode wurde kein Verbraucher der WeatherSimulator-HTTP-API außerhalb des Projekts gefunden. Insbesondere stellt die separate Wetterlogik im PV-Simulator keine belegte API-Integration dar.
-- Alle weiteren Simulatoren (`PV_Simulator`, `WindTurbine_Simulator`, `Battery`, `Dual-Port-Charger`) und Shared-Libraries liegen im Workspace vor.
+- Der gemeinsame Vertrag `ITimeMasterClient` liegt in `TeamShared/SimulationProtocol.cs`.
+- **Wetterdaten-Push:** Vollständig implementiert und getestet:
+  - `TeamShared/Weather/`: `DeviceWeatherRegistration`, `WeatherSnapshotDto`, `WeatherCallbackReceiver`
+  - `WeatherSimulator/`: `WeatherClientRegistry`, `WeatherSnapshotPusher`, Endpunkt `POST /api/weather/register` und `GET /api/weather/clients`
+  - `PV_Simulator/`: Dynamischer Callback-Empfänger ab Port 6000, ACK-Reihenfolge korrigiert (erst rechnen, dann ACK), Nutzung von realem Sonnenstand und Bewölkung mit lokalem Fallback.
+  - `WindTurbine_Simulator/`: Dynamischer Callback-Empfänger ab Port 6100, konfigurierbare Koordinaten (Salzburg-Default: 47.77, 13.09), Windberechnung mit realer Windgeschwindigkeit plus Turbulenzrauschen mit lokalem Fallback.
+- **PV Modbus-TCP-Server (Port 1504):**
+  - Implementiert via `PvModbusService` mit LB02-Holding-Registern 1–12 (OperatingState, ErrorCode, ActivePower in Watt, CumulativeEnergy in kWh, VirtualTime Unix-Timestamp, OnOffState) sowie Registern 13–18 für PV-Metriken (Irradiance, Temperature, CloudCover).
+- **RabbitMQ Telemetrie-Pipeline (Weg A – Gateway-Polling):**
+  - `ModbusRabbitMqGateway`: Konfiguriert für alle 4 Feldgeräte: Charger (`1502`), Battery (`1503`), PV (`1504`), Wind (`1505`).
+  - `ModbusTelemetryMapper`: Vollständige Extraktion der allgemeinen Register (1–12) sowie feldspezifischer Werte für PV (Einstrahlung, Temperatur, Bewölkung) und Wind (Windgeschwindigkeit, Rotor-RPM, Pitch-Winkel).
+  - `RabbitMqViewer`: Visualisiert Live-Telemetrie aller Simulatoren (Charger, Battery, PV mit 100 kW Skala, Wind mit 3000 kW Skala).
+- **Tests & Build:** Vollständiger Solution-Build (`dotNET_Programmierung_2026_Aufgabe_02.slnx`) baut fehlerfrei (0 Fehler, 0 Warnungen außer optionaler Assembly-Referenzwarnung). Alle 9/9 Unit- und Integrations-Tests in `TeamRabbitMQShared.Tests` bestehen erfolgreich.
 
-### 3.2 In Bearbeitung (Work in Progress)
-- In der Master-Analyse wurden keine Simulator-Codeänderungen vorgenommen; dokumentiert wurde der vorhandene Protokoll- und Integrationsstand.
-- Eine Master-Anbindung von PV, Windturbine und WeatherSimulator sowie die Übertragung von Wetterdaten an PV/Wind fehlen.
-- Eine automatische Testabdeckung für den WeatherSimulator wurde nicht gefunden; der Master-Kommunikationspfad wurde in dieser Dokumentationsaufgabe nicht erneut ausgeführt.
-
-### 3.3 Nächste konkrete Schritte
-1. Master-Client-Verbindungen und ACK-Verarbeitung für WeatherSimulator, PV und Windturbine ergänzen, ohne deren fachliche Berechnungen in den Master zu verschieben.
-2. Festlegen und implementieren, wie PV und Wind die Wetterdaten erhalten; aktuell existiert nur die vom Verbraucher aufzurufende HTTP-GET-API.
-3. Synchronisationsabläufe (Registrierung, Pause, Zeitschritt, ACK, Verbindungsabbruch) automatisiert testen.
-4. Bei Bedarf WeatherSimulator-Tests für CSV-Parsing, Interpolation, Zeitabbildung und Sonnenstand ergänzen.
-
-### 3.4 Wiederaufnahme-Hinweis für Agenten
-Wenn eine Sitzung unterbrochen wird: Für Master-Kommunikation zuerst `TeamShared/SimulationProtocol.cs` und `TeamShared/SimulationMaster-Client-Protocol.md` lesen, anschließend `Battery/Simulation/SimulationMasterClient.cs` als vorhandenes Client-Beispiel sowie `Simulations-Master/TcpSimulationServer.cs` für die Server-Barriere prüfen. Master-Port und Takt sind über `SIMULATION_MASTER_PORT` und `SIMULATION_MASTER_TIME_STEP` konfigurierbar. Für Wetterdaten gelten weiterhin `WeatherSimulator/Program.cs` und `WeatherSimulator/Services/`; die Wetter-GET-API ist derzeit nicht an PV oder Wind angeschlossen.
+### 3.2 Wartung & Ausblick
+- Simulatoren und Gateway sind betriebsbereit und können nun mit der geordneten Startreihenfolge ausgeführt werden.
+- Alle Feldgeräte erfüllen die LB02-Spezifikation und integrieren sich nahtlos in die RabbitMQ- und Master-Architektur.

@@ -172,8 +172,8 @@ class Program
                 {
                     "charger" => 300.0,
                     "battery" => 150.0,
-                    "pv" => 50.0,
-                    "wind" => 200.0,
+                    "pv" => 100.0,
+                    "wind" => 3000.0,
                     _ => Math.Max(100.0, powerKw * 1.2)
                 };
 

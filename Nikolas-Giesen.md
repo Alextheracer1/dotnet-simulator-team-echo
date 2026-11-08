@@ -30,3 +30,26 @@ Done: WeatherSimulator als Minimal API auf Port 5005 mit CSV-In-Memory-Parser, H
 KI: Github Copilot GPT-6 Luna => WeatherSimulator-Architektur abstimmen, Minimal API Endpunkte, CSV-Parser und astronomischen Berechnungsservice umsetzen.
 
 Artefacts: WeatherSimulator\Program.cs, WeatherSimulator\Services\WeatherService.cs, WeatherSimulator\Services\IWeatherService.cs, WeatherSimulator\Services\SolarPositionCalculator.cs, WeatherSimulator\Services\ISolarPositionCalculator.cs, WeatherSimulator\Services\WeatherCsvParser.cs, WeatherSimulator\Services\IWeatherCsvParser.cs, WeatherSimulator\Models\WeatherRecord.cs, WeatherSimulator\Models\SolarPosition.cs, WeatherSimulator\Models\WeatherResponse.cs, WeatherSimulator\Models\WeatherDataset.cs, WeatherSimulator\WeatherSimulator.csproj
+
+## 2026-11-08
+
+### Simulation Master – Wind-/Weather-Anbindung
+Done: Windturbine verarbeitet Master-Zeitschritte mit ACK und Offline-Fallback; WeatherSimulator startet HTTP erst nach gültiger Masterzeit.
+
+KI: Github Copilot GPT-6 Luna => Master-Interface in Wind und Weather integriert und Fallback/Resynchronisierung ergänzt.
+
+Artefacts: WindTurbine_Simulator\Program.cs, WindTurbine_Simulator\Simulation\WindTurbineSimulationRunner.cs, WeatherSimulator\Services\WeatherSimulationMasterWorker.cs
+
+### Weather Push & Feldgeräte-Integration
+Done: Wetter-Push via HTTP POST vom WeatherSimulator an PV und Windrad integriert, dynamische Callback-Ports (6000+/6100+) implementiert, Master-ACK-Reihenfolge in PV korrigiert und Modellberechnungen auf zentrale Wetterdaten umgestellt.
+
+KI: Github Copilot GPT-6 Luna => Push-/Registrierungslogik im WeatherSimulator, dynamischen Callback-Empfänger in TeamShared sowie Anbindung in PV- und Windsimulatoren umsetzen.
+
+Artefacts: TeamShared\Weather\DeviceWeatherRegistration.cs, TeamShared\Weather\WeatherSnapshotDto.cs, TeamShared\Weather\WeatherCallbackReceiver.cs, WeatherSimulator\Services\WeatherClientRegistry.cs, WeatherSimulator\Services\WeatherSnapshotPusher.cs, WeatherSimulator\Services\WeatherSimulationMasterWorker.cs, WeatherSimulator\Program.cs, WindTurbine_Simulator\Configuration\SimulationOptions.cs, WindTurbine_Simulator\Simulation\WindTurbineSimulationRunner.cs, WindTurbine_Simulator\Program.cs, PV_Simulator\PV_Simulator\Simulation\SimulationEngine.cs, PV_Simulator\PV_Simulator\Simulation\SimulationRunner.cs, PV_Simulator\PV_Simulator\Program.cs, TeamRabbitMQShared.Tests\WeatherIntegrationTests.cs, TeamRabbitMQShared.Tests\Program.cs
+
+### PV Modbus-Server & RabbitMQ-Gateway Mapping (Weg A)
+Done: PV-Simulator mit Modbus-TCP-Server (Port 1504, LB02-Standard) ausgestattet und ModbusRabbitMqGateway sowie ModbusTelemetryMapper um gerätespezifische PV- und Wind-Metriken erweitert.
+
+KI: Github Copilot GPT-6 Luna => PvModbusService implementieren, ModbusTelemetryMapper für PV und Wind erweitern, GatewayConfiguration und RabbitMqViewer anpassen.
+
+Artefacts: PV_Simulator\PV_Simulator\Modbus\PvModbusService.cs, PV_Simulator\PV_Simulator\Simulation\SimulationRunner.cs, PV_Simulator\PV_Simulator\Program.cs, WindTurbine_Simulator\Configuration\SimulationOptions.cs, WindTurbine_Simulator\Modbus\WindTurbineModbusService.cs, TeamRabbitMQShared\Helpers\ModbusTelemetryMapper.cs, ModbusRabbitMqGateway\GatewayConfiguration.cs, RabbitMqViewer\Program.cs, TeamRabbitMQShared.Tests\TelemetryAndMappingTests.cs, TeamRabbitMQShared.Tests\Program.cs

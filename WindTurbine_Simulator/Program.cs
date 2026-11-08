@@ -1,5 +1,7 @@
+using System.Globalization;
 using Spectre.Console;
 using TeamConsoleShared;
+using TeamShared.Weather;
 using WindTurbine_Simulator.Configuration;
 using WindTurbine_Simulator.ConsoleApp;
 using WindTurbine_Simulator.Domain;
@@ -38,7 +40,21 @@ Console.CancelKeyPress += (_, eventArgs) =>
     cancellationTokenSource.Cancel();
 };
 
+var masterHost = Environment.GetEnvironmentVariable("SIMULATION_MASTER_HOST") ?? "127.0.0.1";
+await using var masterClient = new WindSimulationMasterClient(
+    masterHost,
+    GetSimulationMasterPort(),
+    $"{Environment.MachineName}-WindTurbine");
+
 ui.PrintStart(options, csvLogger.FilePath);
+
+var weatherUrl = Environment.GetEnvironmentVariable("WEATHER_SIMULATOR_URL") ?? "http://localhost:5005";
+var latitude = double.TryParse(Environment.GetEnvironmentVariable("WIND_LATITUDE"), CultureInfo.InvariantCulture, out var parsedLat) ? parsedLat : options.Latitude;
+var longitude = double.TryParse(Environment.GetEnvironmentVariable("WIND_LONGITUDE"), CultureInfo.InvariantCulture, out var parsedLon) ? parsedLon : options.Longitude;
+
+await using var weatherReceiver = await WeatherCallbackReceiver.StartAsync(6100, "wind", cancellationTokenSource.Token);
+AnsiConsole.MarkupLine($"[grey62][Wetter][/] Callback-Empfänger lauscht auf Port [bold cyan]{weatherReceiver.BoundPort}[/]");
+weatherReceiver.StartAutoRegistration(weatherUrl, $"{Environment.MachineName}-WindTurbine", "wind", latitude, longitude);
 
 int? totalSteps = options.Duration.HasValue
     ? (int)Math.Ceiling(options.Duration.Value.TotalSeconds / options.StepInterval.TotalSeconds)
@@ -46,7 +62,8 @@ int? totalSteps = options.Duration.HasValue
 
 try
 {
-    await foreach (var snapshot in runner.RunAsync(cancellationTokenSource.Token))
+    await masterClient.ConnectWithRetryAsync(cancellationTokenSource.Token);
+    await foreach (var snapshot in runner.RunAsync(masterClient, weatherReceiver, cancellationTokenSource.Token))
     {
         statusRenderer.Render(snapshot, options, snapshot.SpeedMultiplier, totalSteps);
         await csvLogger.WriteAsync(snapshot, cancellationTokenSource.Token);
@@ -61,4 +78,16 @@ catch (OperationCanceledException)
 finally
 {
     modbusServer.Stop();
+}
+
+static int GetSimulationMasterPort()
+{
+    var value = Environment.GetEnvironmentVariable("SIMULATION_MASTER_PORT");
+    if (string.IsNullOrWhiteSpace(value))
+        return 1510;
+
+    if (int.TryParse(value, out var port) && port is >= 1 and <= 65535)
+        return port;
+
+    throw new InvalidOperationException("SIMULATION_MASTER_PORT muss einen TCP-Port von 1 bis 65535 enthalten.");
 }

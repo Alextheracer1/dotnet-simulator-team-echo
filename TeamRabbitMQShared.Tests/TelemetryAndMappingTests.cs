@@ -127,4 +127,64 @@ public class TelemetryAndMappingTests
         Assert.Equal(0.55f, (float)telemetry.GetMetric("SOC1"), 0.01f);
         Assert.Equal(0.75f, (float)telemetry.GetMetric("SOC2"), 0.01f);
     }
+
+    [Fact]
+    public void ModbusTelemetryMapper_FromRegisters_MapsPvSpecificRegisters()
+    {
+        var registers = new int[25];
+        registers[CommonRegisterMap.OperatingState] = 2;
+        int[] powerRegs = ModbusClient.ConvertFloatToRegisters(45000.0f);
+        registers[CommonRegisterMap.ActivePower_High] = powerRegs[0];
+        registers[CommonRegisterMap.ActivePower_Low] = powerRegs[1];
+
+        // PV: Irradiance (13-14), Temperature (15-16), CloudCover (17-18)
+        int[] irr = ModbusClient.ConvertFloatToRegisters(850.0f);
+        int[] temp = ModbusClient.ConvertFloatToRegisters(24.5f);
+        int[] cloud = ModbusClient.ConvertFloatToRegisters(15.0f);
+        registers[CommonRegisterMap.DeviceSpecificStart] = irr[0];
+        registers[CommonRegisterMap.DeviceSpecificStart + 1] = irr[1];
+        registers[CommonRegisterMap.DeviceSpecificStart + 2] = temp[0];
+        registers[CommonRegisterMap.DeviceSpecificStart + 3] = temp[1];
+        registers[CommonRegisterMap.DeviceSpecificStart + 4] = cloud[0];
+        registers[CommonRegisterMap.DeviceSpecificStart + 5] = cloud[1];
+
+        var telemetry = ModbusTelemetryMapper.FromRegisters("pv-1", "pv", registers, 1504, 1);
+
+        Assert.Equal("pv-1", telemetry.DeviceId);
+        Assert.Equal("pv", telemetry.DeviceType);
+        Assert.Equal(45.0, telemetry.ActivePowerKw, 1);
+        Assert.Equal(850.0f, (float)telemetry.GetMetric("Irradiance"), 0.1f);
+        Assert.Equal(24.5f, (float)telemetry.GetMetric("Temperature"), 0.1f);
+        Assert.Equal(15.0f, (float)telemetry.GetMetric("CloudCover"), 0.1f);
+    }
+
+    [Fact]
+    public void ModbusTelemetryMapper_FromRegisters_MapsWindSpecificRegisters()
+    {
+        var registers = new int[25];
+        registers[CommonRegisterMap.OperatingState] = 2;
+        int[] powerRegs = ModbusClient.ConvertFloatToRegisters(1200000.0f);
+        registers[CommonRegisterMap.ActivePower_High] = powerRegs[0];
+        registers[CommonRegisterMap.ActivePower_Low] = powerRegs[1];
+
+        // Wind: WindSpeed (13-14), RotorRpm (15-16), PitchAngle (17-18)
+        int[] speed = ModbusClient.ConvertFloatToRegisters(11.5f);
+        int[] rpm = ModbusClient.ConvertFloatToRegisters(17.25f);
+        int[] pitch = ModbusClient.ConvertFloatToRegisters(2.0f);
+        registers[CommonRegisterMap.DeviceSpecificStart] = speed[0];
+        registers[CommonRegisterMap.DeviceSpecificStart + 1] = speed[1];
+        registers[CommonRegisterMap.DeviceSpecificStart + 2] = rpm[0];
+        registers[CommonRegisterMap.DeviceSpecificStart + 3] = rpm[1];
+        registers[CommonRegisterMap.DeviceSpecificStart + 4] = pitch[0];
+        registers[CommonRegisterMap.DeviceSpecificStart + 5] = pitch[1];
+
+        var telemetry = ModbusTelemetryMapper.FromRegisters("wind-1", "wind", registers, 1505, 1);
+
+        Assert.Equal("wind-1", telemetry.DeviceId);
+        Assert.Equal("wind", telemetry.DeviceType);
+        Assert.Equal(1200.0, telemetry.ActivePowerKw, 1);
+        Assert.Equal(11.5f, (float)telemetry.GetMetric("WindSpeed"), 0.1f);
+        Assert.Equal(17.25f, (float)telemetry.GetMetric("RotorRpm"), 0.1f);
+        Assert.Equal(2.0f, (float)telemetry.GetMetric("PitchAngle"), 0.1f);
+    }
 }

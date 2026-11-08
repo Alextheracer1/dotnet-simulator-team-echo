@@ -47,11 +47,11 @@ public sealed class WindTurbineModbusService : IDisposable
         // Virtuelle Zeit als Unix-Timestamp (Sekunden) für Int32
         var virtualTimeSeconds = (int)snapshot.SimulatedAt.ToUnixTimeSeconds();
 
-        // Gemeinsamen Registerkopf aktualisieren
+        // Gemeinsamen Registerkopf aktualisieren (Leistung in Watt)
         _server.UpdateCommonRegisters(
             operatingState: _operatingState,
             errorCode: _errorCode,
-            activePower: (float)snapshot.ActivePowerKw,
+            activePower: (float)(snapshot.ActivePowerKw * 1000.0),
             cumulativeEnergy: (float)snapshot.CumulativeEnergyKwh,
             virtualTime: virtualTimeSeconds,
             onOffState: 1);

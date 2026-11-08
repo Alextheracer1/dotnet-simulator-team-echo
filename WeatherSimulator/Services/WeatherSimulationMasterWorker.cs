@@ -5,12 +5,14 @@ namespace WeatherSimulator.Services;
 public sealed class WeatherSimulationMasterWorker(
     ITimeMasterClient masterClient,
     WeatherSimulationClock clock,
+    IWeatherSnapshotPusher weatherPusher,
     ILogger<WeatherSimulationMasterWorker> logger) : BackgroundService
 {
     public override async Task StartAsync(CancellationToken cancellationToken)
     {
         await masterClient.ConnectWithRetryAsync(cancellationToken).ConfigureAwait(false);
-        await ApplyCurrentEnvironmentAsync(cancellationToken).ConfigureAwait(false);
+        if (!await ApplyCurrentEnvironmentAsync(cancellationToken).ConfigureAwait(false))
+            throw new InvalidOperationException("Der WeatherSimulator benötigt vor dem HTTP-Start eine gültige virtuelle Zeit vom Simulation Master.");
         await base.StartAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -58,6 +60,8 @@ public sealed class WeatherSimulationMasterWorker(
                     {
                         try
                         {
+                            await weatherPusher.PushSnapshotsAsync(message.VirtualTime, stoppingToken).ConfigureAwait(false);
+
                             await masterClient.SendAcknowledgementAsync(
                                 message.Sequence,
                                 message.VirtualTime,
@@ -89,11 +93,11 @@ public sealed class WeatherSimulationMasterWorker(
         }
     }
 
-    private async Task ApplyCurrentEnvironmentAsync(CancellationToken cancellationToken)
+    private async Task<bool> ApplyCurrentEnvironmentAsync(CancellationToken cancellationToken)
     {
         var environment = await masterClient.RequestEnvironmentAsync(cancellationToken).ConfigureAwait(false);
-        if (environment is null)
-            return;
+        if (environment is null || environment.VirtualTime == default)
+            return false;
 
         clock.ApplyMasterMessage(new SimulationMessage
         {
@@ -103,5 +107,6 @@ public sealed class WeatherSimulationMasterWorker(
             IsRunning = environment.IsRunning,
             TimeStep = environment.TimeStep
         });
+        return clock.Current is not null;
     }
 }

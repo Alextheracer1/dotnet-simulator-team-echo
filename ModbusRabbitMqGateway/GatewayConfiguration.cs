@@ -20,7 +20,7 @@ public class GatewayConfiguration
     {
         new ModbusDeviceEndpoint { DeviceId = "charger-1", DeviceType = "charger", Host = "127.0.0.1", Port = 1502, UnitId = 1, RegisterCount = 20 },
         new ModbusDeviceEndpoint { DeviceId = "battery-1", DeviceType = "battery", Host = "127.0.0.1", Port = 1503, UnitId = 1, RegisterCount = 24 },
-        new ModbusDeviceEndpoint { DeviceId = "pv-1", DeviceType = "pv", Host = "127.0.0.1", Port = 1504, UnitId = 1, RegisterCount = 14 },
-        new ModbusDeviceEndpoint { DeviceId = "wind-1", DeviceType = "wind", Host = "127.0.0.1", Port = 1505, UnitId = 1, RegisterCount = 14 }
+        new ModbusDeviceEndpoint { DeviceId = "pv-1", DeviceType = "pv", Host = "127.0.0.1", Port = 1504, UnitId = 1, RegisterCount = 20 },
+        new ModbusDeviceEndpoint { DeviceId = "wind-1", DeviceType = "wind", Host = "127.0.0.1", Port = 1505, UnitId = 1, RegisterCount = 20 }
     };
 }

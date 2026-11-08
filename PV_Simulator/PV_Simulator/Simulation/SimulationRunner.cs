@@ -3,7 +3,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using PV_Simulator.ConsoleApp;
 using PV_Simulator.Domain;
+using PV_Simulator.Modbus;
 using TeamShared.Simulation;
+using TeamShared.Weather;
 
 namespace PV_Simulator.Simulation;
 
@@ -19,6 +21,8 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
         SimulationSettings settings,
         CsvSimulationLogger csvLogger,
         ITimeMasterClient masterClient,
+        WeatherCallbackReceiver? weatherReceiver = null,
+        PvModbusService? modbusService = null,
         CancellationToken cancellationToken = default)
     {
         await masterClient.ConnectWithRetryAsync(cancellationToken).ConfigureAwait(false);
@@ -37,14 +41,15 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
         using var fallbackTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         var fallbackTick = fallbackTimer.WaitForNextTickAsync(cancellationToken).AsTask();
 
-        async Task AdvanceAndLogAsync(DateTimeOffset targetTime, TimeSpan timeStep)
+        async Task AdvanceAndLogAsync(DateTimeOffset targetTime, TimeSpan timeStep, WeatherSnapshotDto? externalWeather = null)
         {
             currentVirtualTime = targetTime;
             elapsed = targetTime - startVirtualTime;
             if (elapsed < TimeSpan.Zero)
                 elapsed = TimeSpan.Zero;
 
-            var snapshot = engine.AdvanceTo(targetTime, timeStep);
+            var snapshot = engine.AdvanceTo(targetTime, timeStep, externalWeather);
+            modbusService?.Update(snapshot);
             var speedMultiplier = timeStep.TotalSeconds;
             var totalSteps = GetTotalSteps(settings.Duration, timeStep);
             renderer.Render(
@@ -113,6 +118,17 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
                     masterTimeStep = message.TimeStep > TimeSpan.Zero ? message.TimeStep : masterTimeStep;
                     isRunning = message.IsRunning;
 
+                    WeatherSnapshotDto? snapshotDto = null;
+                    if (weatherReceiver != null)
+                    {
+                        snapshotDto = await weatherReceiver.WaitForSnapshotAsync(
+                            message.VirtualTime,
+                            TimeSpan.FromSeconds(3),
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
+                    await AdvanceAndLogAsync(currentVirtualTime, masterTimeStep, snapshotDto).ConfigureAwait(false);
+
                     try
                     {
                         await masterClient.SendAcknowledgementAsync(
@@ -127,7 +143,6 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
                             connectionTask = masterClient.ConnectWithRetryAsync(cancellationToken);
                     }
 
-                    await AdvanceAndLogAsync(currentVirtualTime, masterTimeStep).ConfigureAwait(false);
                     if (masterClient.IsConnected)
                         messageTask = masterClient.WaitForNextMessageAsync(cancellationToken);
                 }
@@ -143,7 +158,7 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
                     break;
 
                 if (!masterClient.IsConnected && isRunning)
-                    await AdvanceAndLogAsync(currentVirtualTime + masterTimeStep, masterTimeStep).ConfigureAwait(false);
+                    await AdvanceAndLogAsync(currentVirtualTime + masterTimeStep, masterTimeStep, weatherReceiver?.LatestSnapshot).ConfigureAwait(false);
 
                 fallbackTick = fallbackTimer.WaitForNextTickAsync(cancellationToken).AsTask();
             }
