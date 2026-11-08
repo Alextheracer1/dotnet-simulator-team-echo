@@ -613,13 +613,5 @@
         }
       }
     }
-  },
-  "logs": [
-    {
-      "code": "Undefined",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "Problem beim Lesen der Cachedatei \"C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\Dual-Port-Charger\\obj\\project.nuget.cache\": '<' is an invalid start of a property name. Expected a '\"'. Path: $ | LineNumber: 2 | BytePositionInLine: 0."
-    }
-  ]
+  }
 }

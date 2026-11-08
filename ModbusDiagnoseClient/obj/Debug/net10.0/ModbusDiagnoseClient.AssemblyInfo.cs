@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ModbusDiagnoseClient")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2693d3b00f871f84499a474c7ac81a68acdde49a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+180a3f6eead710a48f2c937e9f9cf2efc6d0c6f2")]
 [assembly: System.Reflection.AssemblyProductAttribute("ModbusDiagnoseClient")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ModbusDiagnoseClient")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

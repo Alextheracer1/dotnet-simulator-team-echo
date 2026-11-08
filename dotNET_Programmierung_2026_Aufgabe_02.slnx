@@ -6,6 +6,5 @@
   <Project Path="Battery/Battery.csproj" />
   <Project Path="WindTurbine_Simulator/WindTurbine_Simulator.csproj" />
   <Project Path="TeamConsoleShared/TeamConsoleShared.csproj" />
+  <Project Path="WeatherSimulator/WeatherSimulator.csproj" />
 </Solution>
-
-
