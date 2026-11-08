@@ -175,11 +175,11 @@ public sealed class ConsoleDashboard
         // Column 1: Battery storage and state
         var batteryMetrics = new List<MetricItem>
         {
-            MetricItem.MarkupValue("Ladezustand (SOC)", GaugeBar.StateOfCharge(battery.StateOfChargePercent, 12), icon: "🔋"),
+            MetricItem.MarkupValue("Ladezustand", GaugeBar.StateOfCharge(battery.StateOfChargePercent, 10), icon: "🔋"),
             MetricItem.Text("Kapazität", $"{battery.StateOfChargeKWh:F1} / {battery.CapacityKWh:F1} kWh", "bold white", "📦"),
-            MetricItem.MarkupValue("Batterieleistung", GaugeBar.Power(Math.Abs(battery.CurrentPowerKW), maxDisplayPower, "kW", 12, battery.CurrentPowerKW >= 0 ? "Laden" : "Entladen"), icon: "⚡"),
+            MetricItem.MarkupValue("Leistung", GaugeBar.Power(Math.Abs(battery.CurrentPowerKW), maxDisplayPower, "kW", 8, battery.CurrentPowerKW >= 0 ? "Laden" : "Entladen", compact: true), icon: "⚡"),
             MetricItem.Text("Betriebsstatus", battery.State.ToString(), battery.State == BatteryState.Fault ? "bold red" : "bold green3", "⚙️"),
-            MetricItem.Text("Durchsatz", $"+{battery.ChargedEnergyKWh:F1} kWh / -{battery.DischargedEnergyKWh:F1} kWh", "bold white", "🔄")
+            MetricItem.Text("Durchsatz", $"+{battery.ChargedEnergyKWh:F1} / -{battery.DischargedEnergyKWh:F1} kWh", "bold white", "🔄")
         };
 
         // Column 2: Network, loads and master sync
@@ -189,11 +189,11 @@ public sealed class ConsoleDashboard
         var gridMetrics = new List<MetricItem>
         {
             MetricItem.Text("Master-Sync", masterText, masterColor, "⏱️"),
-            MetricItem.Number("Netzbezug (Inflow)", inflowKW, "kW", "bold cyan", icon: "🔌"),
-            MetricItem.Number("Verbraucher (Outflow)", outflowKW, "kW", "bold orange1", icon: "🏢"),
-            MetricItem.Number("Gesamtfluss (Netto)", totalFlowKW, "kW", totalFlowKW >= 0 ? "bold green3" : "bold red", "+0.00;-0.00;0.00", icon: "⚖️"),
-            MetricItem.Text("Verbraucherlast", $"{deviceCount} Geräte ({totalDeviceDemandKW:F2} kW)", "bold white", "💡"),
-            MetricItem.Text("SOC-Verlauf (Ø/Min/Max)", rollingSummary is null ? "--" : $"{rollingSummary.AveragePercent:F1}% / {rollingSummary.MinimumPercent:F1}% / {rollingSummary.MaximumPercent:F1}%", "bold yellow", "📈")
+            MetricItem.Number("Netzbezug", inflowKW, "kW", "bold cyan", icon: "🔌"),
+            MetricItem.Number("Verbraucher", outflowKW, "kW", "bold orange1", icon: "🏢"),
+            MetricItem.Number("Nettofluss", totalFlowKW, "kW", totalFlowKW >= 0 ? "bold green3" : "bold red", "+0.00;-0.00;0.00", icon: "⚖️"),
+            MetricItem.Text("Verbraucherlast", $"{deviceCount} Geräte ({totalDeviceDemandKW:F1} kW)", "bold white", "💡"),
+            MetricItem.Text("SOC Ø/Min/Max", rollingSummary is null ? "--" : $"{rollingSummary.AveragePercent:F0}%/{rollingSummary.MinimumPercent:F0}%/{rollingSummary.MaximumPercent:F0}%", "bold yellow", "📈")
         };
 
         dashboard.AddTwoColumns(
