@@ -76,12 +76,12 @@ public sealed class SimulationEngine
 
     public SimulationSnapshot Advance(TimeSpan elapsed)
     {
-        if (elapsed < TimeSpan.Zero || elapsed >= _settings.Duration)
+        if (elapsed < TimeSpan.Zero || (_settings.Duration.HasValue && elapsed >= _settings.Duration.Value))
         {
             throw new ArgumentOutOfRangeException(nameof(elapsed));
         }
 
-        var timeStep = Min(_settings.TimeStep, _settings.Duration - elapsed);
+        var timeStep = _settings.Duration.HasValue ? Min(_settings.TimeStep, _settings.Duration.Value - elapsed) : _settings.TimeStep;
         var simulatedAt = _settings.StartTime + elapsed + timeStep;
         return AdvanceTo(simulatedAt, timeStep);
     }

@@ -51,7 +51,7 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
             var snapshot = engine.AdvanceTo(targetTime, timeStep, externalWeather);
             modbusService?.Update(snapshot);
             var speedMultiplier = timeStep.TotalSeconds;
-            var totalSteps = GetTotalSteps(settings.Duration, timeStep);
+            var totalSteps = settings.Duration.HasValue ? GetTotalSteps(settings.Duration.Value, timeStep) : 0;
             renderer.Render(
                 snapshot,
                 location,
@@ -65,7 +65,7 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
             await csvLogger.WriteAsync(snapshot, location.Name, cancellationToken);
         }
 
-        while (elapsed < settings.Duration)
+        while (!settings.Duration.HasValue || elapsed < settings.Duration.Value)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var waitTasks = new List<Task> { fallbackTick };
@@ -187,11 +187,11 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
         {
             case ConsoleKey.C:
                 _selectedWeatherControl = WeatherControlSelection.CloudCover;
-                Console.WriteLine("Wolkenbedeckung ausgewählt; +/- ändert sie in 10-Prozentpunkt-Schritten.");
+                Console.WriteLine("Wolkenbedeckung ausgewÃ¤hlt; +/- Ã¤ndert sie in 10-Prozentpunkt-Schritten.");
                 break;
             case ConsoleKey.T:
                 _selectedWeatherControl = WeatherControlSelection.Temperature;
-                Console.WriteLine("Temperatur ausgewählt; +/- ändert sie in 2-°C-Schritten.");
+                Console.WriteLine("Temperatur ausgewÃ¤hlt; +/- Ã¤ndert sie in 2-Â°C-Schritten.");
                 break;
             case ConsoleKey.Add:
             case ConsoleKey.OemPlus:
@@ -201,7 +201,7 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
                 }
                 else if (_selectedWeatherControl == WeatherControlSelection.Temperature)
                 {
-                    Console.WriteLine($"Temperatur: {engine.AdjustTemperature(1):0.0} °C");
+                    Console.WriteLine($"Temperatur: {engine.AdjustTemperature(1):0.0} Â°C");
                 }
                 else
                 {
@@ -217,7 +217,7 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
                 }
                 else if (_selectedWeatherControl == WeatherControlSelection.Temperature)
                 {
-                    Console.WriteLine($"Temperatur: {engine.AdjustTemperature(-1):0.0} °C");
+                    Console.WriteLine($"Temperatur: {engine.AdjustTemperature(-1):0.0} Â°C");
                 }
                 else
                 {
@@ -244,7 +244,7 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
                 Console.WriteLine($"Manueller Regen {(engine.ToggleManualRain() ? "aktiviert" : "deaktiviert")}.");
                 break;
             case ConsoleKey.F:
-                Console.WriteLine($"Manuelle Wechselrichterstörung {(engine.ToggleManualFault() ? "aktiviert" : "deaktiviert")}.");
+                Console.WriteLine($"Manuelle WechselrichterstÃ¶rung {(engine.ToggleManualFault() ? "aktiviert" : "deaktiviert")}.");
                 break;
             case ConsoleKey.S:
                 Console.WriteLine($"PV-Module {(engine.ToggleSnowCover() ? "verschneit" : "schneefrei")}.");

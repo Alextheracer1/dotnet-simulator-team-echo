@@ -53,3 +53,24 @@ Done: PV-Simulator mit Modbus-TCP-Server (Port 1504, LB02-Standard) ausgestattet
 KI: Github Copilot GPT-6 Luna => PvModbusService implementieren, ModbusTelemetryMapper für PV und Wind erweitern, GatewayConfiguration und RabbitMqViewer anpassen.
 
 Artefacts: PV_Simulator\PV_Simulator\Modbus\PvModbusService.cs, PV_Simulator\PV_Simulator\Simulation\SimulationRunner.cs, PV_Simulator\PV_Simulator\Program.cs, WindTurbine_Simulator\Configuration\SimulationOptions.cs, WindTurbine_Simulator\Modbus\WindTurbineModbusService.cs, TeamRabbitMQShared\Helpers\ModbusTelemetryMapper.cs, ModbusRabbitMqGateway\GatewayConfiguration.cs, RabbitMqViewer\Program.cs, TeamRabbitMQShared.Tests\TelemetryAndMappingTests.cs, TeamRabbitMQShared.Tests\Program.cs
+
+### Spectre.Console Markup-Escaping & Clean Build
+Done: Spectre.Console Markup-Tags [Modbus] und [Wetter] durch doppelte Klammern [[...]] maskiert und veraltete Assembly-Referenzen entfernt.
+
+KI: Github Copilot GPT-6 Luna => Spectre-Markup-Parserfehler in Wind- und PV-Simulatoren beheben und Projektdateien bereinigen.
+
+Artefacts: WindTurbine_Simulator\Program.cs, PV_Simulator\PV_Simulator\Program.cs, TeamShared\TeamShared.csproj, ModbusDiagnoseClient\ModbusDiagnoseClient.csproj
+
+### PV-Simulator – Unbegrenzte Laufzeit im Master-Betrieb
+Done: 24h-Begrenzung im PV-Simulator aufgehoben, Simulationsdauer optional (nullable) gestaltet und Simulationsschleife auf unbegrenzten Master-Betrieb umgestellt.
+
+KI: Github Copilot GPT-6 Luna => SimulationSettings, SimulationEngine, SimulationRunner und ConsoleStatusRenderer auf unbegrenzte Laufzeit analog Windrad anpassen.
+
+Artefacts: PV_Simulator\PV_Simulator\Domain\SimulationSettings.cs, PV_Simulator\PV_Simulator\Simulation\SimulationEngine.cs, PV_Simulator\PV_Simulator\Simulation\SimulationRunner.cs, PV_Simulator\PV_Simulator\ConsoleApp\ConsoleStatusRenderer.cs, PV_Simulator\PV_Simulator\ConsoleApp\ConsoleInput.cs, PV_Simulator\PV_Simulator\Program.cs
+
+### WindTurbine-Simulator – Standardmäßig unbegrenzte Laufzeit
+Done: Standard-Simulationsdauer im Windrad auf unbegrenzt (inf / null) gesetzt, um vorzeitigen Abbruch nach 24h im Master-Betrieb zu verhindern.
+
+KI: Github Copilot GPT-6 Luna => SimulationOptions und ConsoleUi Default-Duration auf unbegrenzt umstellen.
+
+Artefacts: WindTurbine_Simulator\Configuration\SimulationOptions.cs, WindTurbine_Simulator\ConsoleApp\ConsoleUi.cs

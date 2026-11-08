@@ -39,20 +39,21 @@ try
     settings = new SimulationSettings(
         new DateTimeOffset(DateTime.SpecifyKind(masterEnvironment.VirtualTime, DateTimeKind.Utc)),
         settings.TimeStep,
-        settings.SpeedMultiplier);
+        settings.SpeedMultiplier,
+        settings.Duration);
     using var deviceIdLease = new DeviceIdLease(array.DeviceId);
     var engine = new SimulationEngine(location, array, inverter, settings, weatherSettings);
     var renderer = new ConsoleStatusRenderer();
     var runner = new SimulationRunner(renderer);
     var weatherUrl = Environment.GetEnvironmentVariable("WEATHER_SIMULATOR_URL") ?? "http://localhost:5005";
     await using var weatherReceiver = await WeatherCallbackReceiver.StartAsync(6000, "pv");
-    AnsiConsole.MarkupLine($"[grey62][Wetter][/] Callback-Empfänger lauscht auf Port [bold cyan]{weatherReceiver.BoundPort}[/]");
+    AnsiConsole.MarkupLine($"[grey62][[Wetter]][/] Callback-Empfänger lauscht auf Port [bold cyan]{weatherReceiver.BoundPort}[/]");
     weatherReceiver.StartAutoRegistration(weatherUrl, array.DeviceId, "pv", location.Latitude, location.Longitude);
 
     var modbusPort = GetModbusPort();
     using var modbusServer = new PvModbusService(modbusPort, 1);
     modbusServer.Start();
-    AnsiConsole.MarkupLine($"[grey62][Modbus][/] Server lauscht auf Port [bold cyan]{modbusPort}[/] (Unit ID: [bold cyan]1[/])");
+    AnsiConsole.MarkupLine($"[grey62][[Modbus]][/] Server lauscht auf Port [bold cyan]{modbusPort}[/] (Unit ID: [bold cyan]1[/])");
 
     var safeDeviceId = string.Concat(array.DeviceId.Select(character =>
         Path.GetInvalidFileNameChars().Contains(character) ? '_' : character));

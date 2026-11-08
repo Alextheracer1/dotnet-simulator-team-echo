@@ -21,7 +21,7 @@ var model = new WindTurbineModel(
 
 using var modbusServer = new WindTurbineModbusService(options.ModbusPort, options.ModbusUnitId);
 modbusServer.Start();
-AnsiConsole.MarkupLine($"[grey62][Modbus][/] Server lauscht auf Port [bold cyan]{options.ModbusPort}[/] (Unit ID: [bold cyan]{options.ModbusUnitId}[/])");
+AnsiConsole.MarkupLine($"[grey62][[Modbus]][/] Server lauscht auf Port [bold cyan]{options.ModbusPort}[/] (Unit ID: [bold cyan]{options.ModbusUnitId}[/])");
 
 var runner = new WindTurbineSimulationRunner(model, options, modbusServer);
 var statusRenderer = new ConsoleStatusRenderer();
@@ -53,7 +53,7 @@ var latitude = double.TryParse(Environment.GetEnvironmentVariable("WIND_LATITUDE
 var longitude = double.TryParse(Environment.GetEnvironmentVariable("WIND_LONGITUDE"), CultureInfo.InvariantCulture, out var parsedLon) ? parsedLon : options.Longitude;
 
 await using var weatherReceiver = await WeatherCallbackReceiver.StartAsync(6100, "wind", cancellationTokenSource.Token);
-AnsiConsole.MarkupLine($"[grey62][Wetter][/] Callback-Empfänger lauscht auf Port [bold cyan]{weatherReceiver.BoundPort}[/]");
+AnsiConsole.MarkupLine($"[grey62][[Wetter]][/] Callback-Empfänger lauscht auf Port [bold cyan]{weatherReceiver.BoundPort}[/]");
 weatherReceiver.StartAutoRegistration(weatherUrl, $"{Environment.MachineName}-WindTurbine", "wind", latitude, longitude);
 
 int? totalSteps = options.Duration.HasValue

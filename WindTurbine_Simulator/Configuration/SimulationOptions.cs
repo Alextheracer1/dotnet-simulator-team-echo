@@ -4,7 +4,7 @@ public sealed class SimulationOptions
 {
     public DateTimeOffset StartTime { get; init; } = DateTimeOffset.Now;
     public TimeSpan StepInterval { get; init; } = TimeSpan.FromMinutes(5);
-    public TimeSpan? Duration { get; init; } = TimeSpan.FromHours(24);
+    public TimeSpan? Duration { get; init; } = null;
     public double SpeedMultiplier { get; init; } = 60;
     public double MinimumWindSpeedMps { get; init; } = 2.5;
     public double MaximumWindSpeedMps { get; init; } = 18.0;

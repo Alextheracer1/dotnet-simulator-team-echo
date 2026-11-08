@@ -36,7 +36,8 @@ public sealed class ConsoleInput
         var settings = new SimulationSettings(
             DateTimeOffset.UtcNow,
             configuration.Settings.TimeStep,
-            configuration.Settings.SpeedMultiplier);
+            configuration.Settings.SpeedMultiplier,
+            configuration.Settings.Duration);
         var weatherSettings = ReadWeatherSettings();
         configuration = new SimulationConfiguration(
             configuration.Location,
@@ -68,7 +69,7 @@ public sealed class ConsoleInput
             new Location(name, latitude, longitude, elevation),
             new PvArray(deviceId, peakPower, tilt, azimuth),
             new Inverter(inverterPower, failureProbability, TimeSpan.FromMinutes(repairMinutes)),
-            new SimulationSettings(DateTimeOffset.UtcNow, defaultSettings.TimeStep, defaultSettings.SpeedMultiplier),
+            new SimulationSettings(DateTimeOffset.UtcNow, defaultSettings.TimeStep, defaultSettings.SpeedMultiplier, defaultSettings.Duration),
             new WeatherSettings(null));
     }
 

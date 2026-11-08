@@ -18,7 +18,7 @@ public sealed class ConsoleUi
         AnsiConsole.Markup("[bold cyan]Standardwerte für Physik und Zeit verwenden (j/n)?[/] [grey][[j]]: [/]");
         var input = Console.ReadLine()?.Trim().ToLower();
 
-        TimeSpan? duration = TimeSpan.FromHours(24);
+        TimeSpan? duration = null;
         TimeSpan stepInterval = TimeSpan.FromSeconds(300);
         double ratedPower = 3000.0;
         double rotorArea = 8000.0;
@@ -68,15 +68,10 @@ public sealed class ConsoleUi
     {
         while (true)
         {
-            AnsiConsole.Markup("[bold grey85]Simulationsdauer in Stunden [grey][[24]][/] oder 'inf' für unbegrenzt: [/]");
+            AnsiConsole.Markup("[bold grey85]Simulationsdauer in Stunden oder 'inf' für unbegrenzt [grey][[inf]][/]: [/]");
             var input = Console.ReadLine()?.Trim();
 
-            if (string.IsNullOrWhiteSpace(input))
-            {
-                return TimeSpan.FromHours(24);
-            }
-
-            if (string.Equals(input, "inf", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(input) || string.Equals(input, "inf", StringComparison.OrdinalIgnoreCase))
             {
                 return null;
             }

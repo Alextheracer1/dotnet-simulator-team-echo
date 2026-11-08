@@ -16,7 +16,7 @@ public sealed class ConsoleStatusRenderer
         Location location,
         PvArray array,
         Inverter inverter,
-        TimeSpan duration,
+        TimeSpan? duration,
         double speedMultiplier,
         int totalSteps,
         string selectedWeatherControl,
@@ -24,7 +24,8 @@ public sealed class ConsoleStatusRenderer
     {
         if (Console.IsOutputRedirected || Console.IsErrorRedirected)
         {
-            var fallback = $"{snapshot.SimulatedAt:dd.MM.yyyy HH:mm} | Step {snapshot.StepNumber}/{totalSteps} | PV {snapshot.PowerKilowatts:F2} kW | {snapshot.InverterStatus} | Cloud {snapshot.Weather.CloudCoverFraction:P0}";
+            var stepsText = duration.HasValue ? $"{snapshot.StepNumber}/{totalSteps}" : $"{snapshot.StepNumber}";
+            var fallback = $"{snapshot.SimulatedAt:dd.MM.yyyy HH:mm} | Step {stepsText} | PV {snapshot.PowerKilowatts:F2} kW | {snapshot.InverterStatus} | Cloud {snapshot.Weather.CloudCoverFraction:P0}";
             Console.WriteLine(fallback);
             return;
         }
@@ -77,7 +78,7 @@ public sealed class ConsoleStatusRenderer
             MetricItem.Text("Niederschlag", $"{snapshot.Weather.Precipitation}", "bold white", "🌧️"),
             MetricItem.Text("Modulzustand", snapshot.SnowCoverActive ? "Verschneit" : "Schneefrei", snapshot.SnowCoverActive ? "bold cyan" : "bold green3", "❄️"),
             MetricItem.Text("Aktive Steuerung", selectedWeatherControl, "bold yellow", "🎮"),
-            MetricItem.Text("Fortschritt", $"Schritt {snapshot.StepNumber} / {totalSteps} ({duration:hh\\:mm})", "bold white", "⏳")
+            MetricItem.Text("Fortschritt", duration.HasValue ? $"Schritt {snapshot.StepNumber} / {totalSteps} ({duration.Value:hh\\:mm})" : $"Schritt {snapshot.StepNumber} (unbegrenzt)", "bold white", "⏳")
         };
 
         dashboard.AddTwoColumns(
