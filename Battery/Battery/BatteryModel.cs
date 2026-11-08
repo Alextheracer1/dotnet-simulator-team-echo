@@ -2,6 +2,10 @@ namespace Battery.Battery;
 
 public sealed class BatteryModel
 {
+    public const double HardwareMaximumCapacityKWh = 10.0;
+    public const double HardwareMaximumChargePowerKW = 3.0;
+    public const double HardwareMaximumDischargePowerKW = 18.0;
+
     public double CapacityKWh { get; }
     public double MaximumChargePowerKW { get; }
     public double MaximumDischargePowerKW { get; }
@@ -19,12 +23,12 @@ public sealed class BatteryModel
         double maximumDischargePowerKW,
         double initialStateOfChargePercent)
     {
-        if (!double.IsFinite(capacityKWh) || capacityKWh <= 0)
-            throw new ArgumentOutOfRangeException(nameof(capacityKWh));
-        if (!double.IsFinite(maximumChargePowerKW) || maximumChargePowerKW <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maximumChargePowerKW));
-        if (!double.IsFinite(maximumDischargePowerKW) || maximumDischargePowerKW <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maximumDischargePowerKW));
+        if (!double.IsFinite(capacityKWh) || capacityKWh <= 0 || capacityKWh > HardwareMaximumCapacityKWh)
+            throw new ArgumentOutOfRangeException(nameof(capacityKWh), $"Capacity must be positive and no greater than {HardwareMaximumCapacityKWh} kWh.");
+        if (!double.IsFinite(maximumChargePowerKW) || maximumChargePowerKW <= 0 || maximumChargePowerKW > HardwareMaximumChargePowerKW)
+            throw new ArgumentOutOfRangeException(nameof(maximumChargePowerKW), $"Maximum charge power must be positive and no greater than {HardwareMaximumChargePowerKW} kW.");
+        if (!double.IsFinite(maximumDischargePowerKW) || maximumDischargePowerKW <= 0 || maximumDischargePowerKW > HardwareMaximumDischargePowerKW)
+            throw new ArgumentOutOfRangeException(nameof(maximumDischargePowerKW), $"Maximum discharge power must be positive and no greater than {HardwareMaximumDischargePowerKW} kW.");
         if (!double.IsFinite(initialStateOfChargePercent) || initialStateOfChargePercent is < 0 or > 100)
             throw new ArgumentOutOfRangeException(nameof(initialStateOfChargePercent));
 
