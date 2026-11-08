@@ -175,9 +175,9 @@ public sealed class ConsoleDashboard
         // Column 1: Battery storage and state
         var batteryMetrics = new List<MetricItem>
         {
-            MetricItem.MarkupValue("Ladezustand (SOC)", GaugeBar.StateOfCharge(battery.StateOfChargePercent, 20), icon: "🔋"),
+            MetricItem.MarkupValue("Ladezustand (SOC)", GaugeBar.StateOfCharge(battery.StateOfChargePercent, 12), icon: "🔋"),
             MetricItem.Text("Kapazität", $"{battery.StateOfChargeKWh:F1} / {battery.CapacityKWh:F1} kWh", "bold white", "📦"),
-            MetricItem.MarkupValue("Batterieleistung", GaugeBar.Power(Math.Abs(battery.CurrentPowerKW), maxDisplayPower, "kW", 20, battery.CurrentPowerKW >= 0 ? "Laden" : "Entladen"), icon: "⚡"),
+            MetricItem.MarkupValue("Batterieleistung", GaugeBar.Power(Math.Abs(battery.CurrentPowerKW), maxDisplayPower, "kW", 12, battery.CurrentPowerKW >= 0 ? "Laden" : "Entladen"), icon: "⚡"),
             MetricItem.Text("Betriebsstatus", battery.State.ToString(), battery.State == BatteryState.Fault ? "bold red" : "bold green3", "⚙️"),
             MetricItem.Text("Durchsatz", $"+{battery.ChargedEnergyKWh:F1} kWh / -{battery.DischargedEnergyKWh:F1} kWh", "bold white", "🔄")
         };
@@ -225,7 +225,6 @@ public sealed class ConsoleDashboard
             ("Q", "Beenden")
         );
 
-        SimulationTheme.PrepareFrame();
-        AnsiConsole.Write(dashboard.Build());
+        dashboard.Render();
     }
 }

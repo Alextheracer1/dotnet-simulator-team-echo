@@ -16,6 +16,10 @@ public static class SimulationTheme
     public static readonly Color ViewerAccent = Color.DodgerBlue1;
     public static readonly Color DiagnoseAccent = Color.DarkOrange;
 
+    private static readonly object _renderLock = new();
+    private static int _lastWidth = -1;
+    private static int _lastHeight = -1;
+
     /// <summary>
     /// Configures console output encoding and hides the cursor if supported.
     /// </summary>
@@ -27,6 +31,9 @@ public static class SimulationTheme
             try
             {
                 Console.CursorVisible = false;
+                Console.Clear();
+                _lastWidth = Console.WindowWidth;
+                _lastHeight = Console.WindowHeight;
             }
             catch
             {
@@ -37,18 +44,56 @@ public static class SimulationTheme
 
     /// <summary>
     /// Resets the cursor to (0, 0) for flicker-free in-place re-rendering.
+    /// Automatically clears the console screen buffer if a terminal resize is detected.
     /// </summary>
     public static void PrepareFrame()
     {
         if (!Console.IsOutputRedirected)
         {
-            try
+            lock (_renderLock)
             {
-                Console.SetCursorPosition(0, 0);
+                try
+                {
+                    int currentWidth = Console.WindowWidth;
+                    int currentHeight = Console.WindowHeight;
+
+                    if (_lastWidth == -1 || currentWidth != _lastWidth || currentHeight != _lastHeight)
+                    {
+                        Console.Clear();
+                        _lastWidth = currentWidth;
+                        _lastHeight = currentHeight;
+                    }
+                    else
+                    {
+                        Console.SetCursorPosition(0, 0);
+                    }
+                }
+                catch
+                {
+                    // Fallback for redirected or constrained console environments
+                }
             }
-            catch
+        }
+    }
+
+    /// <summary>
+    /// Clears any leftover lines below the rendered frame to prevent ghosting or duplicated panels
+    /// when the frame content height shrinks.
+    /// </summary>
+    public static void EndFrame()
+    {
+        if (!Console.IsOutputRedirected)
+        {
+            lock (_renderLock)
             {
-                // Fallback for redirected or constrained console environments
+                try
+                {
+                    Console.Write("\x1b[J");
+                }
+                catch
+                {
+                    // Fallback for redirected or constrained console environments
+                }
             }
         }
     }

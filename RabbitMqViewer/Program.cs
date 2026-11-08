@@ -237,6 +237,7 @@ class Program
 
         SimulationTheme.PrepareFrame();
         AnsiConsole.Write(layoutGrid);
+        SimulationTheme.EndFrame();
     }
 
     private static async Task SendTestCommandAsync(IRabbitMqPublisher publisher, CancellationToken ct)

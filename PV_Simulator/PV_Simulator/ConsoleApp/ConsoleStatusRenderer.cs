@@ -96,7 +96,6 @@ public sealed class ConsoleStatusRenderer
             ("P", "Pause")
         );
 
-        SimulationTheme.PrepareFrame();
-        AnsiConsole.Write(dashboard.Build());
+        dashboard.Render();
     }
 }

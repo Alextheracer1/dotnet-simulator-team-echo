@@ -104,7 +104,10 @@ public sealed class BatterySimulator
                 setpoint => commands.Writer.TryWrite($"setpoint {setpoint.ToString(CultureInfo.InvariantCulture)}"),
                 () => commands.Writer.TryWrite("reset"));
             await modbusService.StartAsync(cancellationToken).ConfigureAwait(false);
-            Console.WriteLine($"Battery Modbus TCP server listening on port {_options.ModbusPort}, unit {_options.ModbusUnitId}.");
+            if (Console.IsOutputRedirected)
+            {
+                Console.WriteLine($"Battery Modbus TCP server listening on port {_options.ModbusPort}, unit {_options.ModbusUnitId}.");
+            }
 
             Task? connectionTask = _simulationMasterClient?.ConnectWithRetryAsync(cancellationToken);
             Task<SimulationMessage?>? masterMessageTask = null;

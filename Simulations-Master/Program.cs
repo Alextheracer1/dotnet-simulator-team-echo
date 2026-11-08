@@ -190,8 +190,7 @@ public static class Program
             ("Q", "Beenden")
         );
 
-        SimulationTheme.PrepareFrame();
-        AnsiConsole.Write(dashboard.Build());
+        dashboard.Render();
     }
 
     private static int GetPortFromEnvironment(string variableName, int defaultPort)

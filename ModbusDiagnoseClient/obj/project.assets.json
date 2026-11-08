@@ -356,7 +356,7 @@
     ]
   },
   "packageFolders": {
-    "/Users/alex/.nuget/packages/": {}
+    "/tmp/dotnet_home/.nuget/packages/": {}
   },
   "project": {
     "version": "1.0.0",
@@ -364,12 +364,12 @@
       "projectUniqueName": "/Users/alex/Github/dotnet-simulator-team-echo/ModbusDiagnoseClient/ModbusDiagnoseClient.csproj",
       "projectName": "ModbusDiagnoseClient",
       "projectPath": "/Users/alex/Github/dotnet-simulator-team-echo/ModbusDiagnoseClient/ModbusDiagnoseClient.csproj",
-      "packagesPath": "/Users/alex/.nuget/packages/",
+      "packagesPath": "/tmp/dotnet_home/.nuget/packages/",
       "outputPath": "/Users/alex/Github/dotnet-simulator-team-echo/ModbusDiagnoseClient/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/Users/alex/Github/dotnet-simulator-team-echo/NuGet.Config",
-        "/Users/alex/.nuget/NuGet/NuGet.Config"
+        "/tmp/dotnet_home/.nuget/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
@@ -379,7 +379,6 @@
       },
       "frameworks": {
         "net10.0": {
-          "framework": "net10.0",
           "targetAlias": "net10.0",
           "projectReferences": {
             "/Users/alex/Github/dotnet-simulator-team-echo/TeamConsoleShared/TeamConsoleShared.csproj": {
@@ -405,7 +404,6 @@
     },
     "frameworks": {
       "net10.0": {
-        "framework": "net10.0",
         "targetAlias": "net10.0",
         "imports": [
           "net461",

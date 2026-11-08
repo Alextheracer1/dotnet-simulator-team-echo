@@ -143,10 +143,12 @@ public sealed class SimulationDashboard
     }
 
     /// <summary>
-    /// Directly writes the dashboard to the console.
+    /// Directly writes the dashboard to the console with frame lifecycle management.
     /// </summary>
     public void Render()
     {
+        SimulationTheme.PrepareFrame();
         AnsiConsole.Write(Build());
+        SimulationTheme.EndFrame();
     }
 }

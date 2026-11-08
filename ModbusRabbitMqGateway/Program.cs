@@ -191,5 +191,6 @@ class Program
 
         SimulationTheme.PrepareFrame();
         AnsiConsole.Write(layoutGrid);
+        SimulationTheme.EndFrame();
     }
 }
