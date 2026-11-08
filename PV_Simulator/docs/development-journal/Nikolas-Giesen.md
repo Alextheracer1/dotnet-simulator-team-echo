@@ -56,3 +56,12 @@
 
 -**Konsolenausgabe:**
 ![alt text](VerbeseserteAusgabe.png)
+
+## 2026-10-26 - Windradsimulator und einbindung des ModBus
+
+-**Done:** Der Windradsimulator wurde gemacht und der ModBus integriert
+
+-**KI:** Gemini Pro 3.1 => Copy paste von Code
+
+-**Artefacts:** 'WindTurbine_Simulator\Configuration\SimulationOption.cs', 'WindTurbine_Simulator\ConsoleApp\ConsoleStatusRenderer.cs', 'WindTurbine_Simulator\ConsoleApp\ConsoleUI.cs', 'WindTurbine_Simulator\Domain\WindTurbineModel.cs', 'WindTurbine_Simulator\Modbus\WindTurbineModbusService.cs', 'WindTurbine_Simulator\Simulation\CsvSimulationLogger.cs', 'WindTurbine_Simulator\Simulation\WindTurbineSimulationRunner.cs', 'WindTurbine_Simulator\Program.cs'
+

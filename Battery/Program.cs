@@ -1,4 +1,4 @@
-﻿using Battery.Simulation;
+using Battery.Simulation;
 
 namespace Battery
 {
@@ -15,7 +15,8 @@ namespace Battery
                 StepSize = TimeSpan.FromMinutes(15),
                 StartTime = DateTime.Today,
                 Duration = SimulationOptions.DefaultDuration,
-                CsvPath = Path.Combine("data", "battery-run.csv")
+                CsvPath = Path.Combine("data", "battery-run.csv"),
+                ModbusPort = GetPortFromEnvironment("BATTERY_MODBUS_PORT", 1502)
             };
 
             using var cancellationTokenSource = new CancellationTokenSource();
@@ -28,7 +29,12 @@ namespace Battery
 
             try
             {
-                await new BatterySimulator(options).RunAsync(cancellationTokenSource.Token);
+                // The BatterySimulator runs the connection retry loop in the background. This allows its
+                // dashboard and local fallback clock to remain active while the master is unavailable.
+                var masterHost = Environment.GetEnvironmentVariable("SIMULATION_MASTER_HOST") ?? "127.0.0.1";
+                var masterPort = GetPortFromEnvironment("SIMULATION_MASTER_PORT", 1510);
+                await using var simulationMaster = new SimulationMasterClient(masterHost, masterPort);
+                await new BatterySimulator(options, simulationMaster).RunAsync(cancellationTokenSource.Token);
             }
             catch (OperationCanceledException)
             {
@@ -40,5 +46,16 @@ namespace Battery
             }
         }
 
+        private static int GetPortFromEnvironment(string variableName, int defaultPort)
+        {
+            var value = Environment.GetEnvironmentVariable(variableName);
+            if (string.IsNullOrWhiteSpace(value))
+                return defaultPort;
+
+            if (int.TryParse(value, out var port) && port is >= 1 and <= 65535)
+                return port;
+
+            throw new InvalidOperationException($"Environment variable {variableName} must contain a TCP port from 1 through 65535.");
+        }
     }
 }

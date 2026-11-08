@@ -1,8 +1,17 @@
 {
   "version": 2,
-  "dgSpecHash": "edM3TsqWDx4=",
-  "success": true,
+  "dgSpecHash": "yNSq4XjpMo4=",
+  "success": false,
   "projectFilePath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\PV_Simulator\\PV_Simulator\\PV_Simulator.csproj",
   "expectedPackageFiles": [],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Die lokale Quelle \"C:\\Users\\alex\\.nuget\\packages\" ist nicht vorhanden.",
+      "projectPath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\PV_Simulator\\PV_Simulator\\PV_Simulator.csproj",
+      "filePath": "C:\\FH Salzburg\\5. Semester\\.NET\\dotnet-simulator-team-echo\\PV_Simulator\\PV_Simulator\\PV_Simulator.csproj",
+      "targetGraphs": []
+    }
+  ]
 }

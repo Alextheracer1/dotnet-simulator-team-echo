@@ -1,50 +1,71 @@
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\bin\Debug\net10.0\PV_Simulator.exe
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\bin\Debug\net10.0\PV_Simulator.deps.json
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\bin\Debug\net10.0\PV_Simulator.runtimeconfig.json
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\bin\Debug\net10.0\PV_Simulator.dll
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\bin\Debug\net10.0\PV_Simulator.pdb
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.GeneratedMSBuildEditorConfig.editorconfig
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.AssemblyInfoInputs.cache
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.AssemblyInfo.cs
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.csproj.CoreCompileInputs.cache
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.dll
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\refint\PV_Simulator.dll
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.pdb
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.genruntimeconfig.cache
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\ref\PV_Simulator.dll
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simul.FFBA6D2C.Up2Date
-C:\FH Salzburg\5. Semester\BA1\Literatur\Projekt\PV_Simulator\PV_Simulator\bin\Debug\net10.0\data\snow-climatology.template.json
-C:\FH Salzburg\5. Semester\.NET\Projekt\PV_Simulator\PV_Simulator\bin\Debug\net10.0\PV_Simulator.exe
-C:\FH Salzburg\5. Semester\.NET\Projekt\PV_Simulator\PV_Simulator\bin\Debug\net10.0\PV_Simulator.deps.json
-C:\FH Salzburg\5. Semester\.NET\Projekt\PV_Simulator\PV_Simulator\bin\Debug\net10.0\PV_Simulator.runtimeconfig.json
-C:\FH Salzburg\5. Semester\.NET\Projekt\PV_Simulator\PV_Simulator\bin\Debug\net10.0\PV_Simulator.dll
-C:\FH Salzburg\5. Semester\.NET\Projekt\PV_Simulator\PV_Simulator\bin\Debug\net10.0\PV_Simulator.pdb
-C:\FH Salzburg\5. Semester\.NET\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.GeneratedMSBuildEditorConfig.editorconfig
-C:\FH Salzburg\5. Semester\.NET\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.AssemblyInfoInputs.cache
-C:\FH Salzburg\5. Semester\.NET\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.AssemblyInfo.cs
-C:\FH Salzburg\5. Semester\.NET\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.csproj.CoreCompileInputs.cache
-C:\FH Salzburg\5. Semester\.NET\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.dll
-C:\FH Salzburg\5. Semester\.NET\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\refint\PV_Simulator.dll
-C:\FH Salzburg\5. Semester\.NET\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.pdb
-C:\FH Salzburg\5. Semester\.NET\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.genruntimeconfig.cache
-C:\FH Salzburg\5. Semester\.NET\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\ref\PV_Simulator.dll
-C:\FH Salzburg\5. Semester\.NET\Projekt\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simul.FFBA6D2C.Up2Date
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\bin\Debug\net10.0\PV_Simulator.exe
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\bin\Debug\net10.0\PV_Simulator.deps.json
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\bin\Debug\net10.0\PV_Simulator.runtimeconfig.json
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\bin\Debug\net10.0\PV_Simulator.dll
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\bin\Debug\net10.0\PV_Simulator.pdb
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.GeneratedMSBuildEditorConfig.editorconfig
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.AssemblyInfoInputs.cache
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.AssemblyInfo.cs
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.csproj.CoreCompileInputs.cache
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.sourcelink.json
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.dll
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\obj\Debug\net10.0\refint\PV_Simulator.dll
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.pdb
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.genruntimeconfig.cache
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\obj\Debug\net10.0\ref\PV_Simulator.dll
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simul.FFBA6D2C.Up2Date
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\bin\Debug\net10.0\TeamConsoleShared.dll
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\bin\Debug\net10.0\TeamConsoleShared.pdb
-C:\FH Salzburg\5. Semester\.NET\dotnet-simulator-team-echo\PV_Simulator\PV_Simulator\obj\Debug\net10.0\PV_Simulator.csproj.AssemblyReference.cache
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.exe
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.deps.json
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.runtimeconfig.json
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.dll
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.pdb
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.GeneratedMSBuildEditorConfig.editorconfig
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.AssemblyInfoInputs.cache
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.AssemblyInfo.cs
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.csproj.CoreCompileInputs.cache
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.dll
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/refint/PV_Simulator.dll
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.pdb
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.genruntimeconfig.cache
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/ref/PV_Simulator.dll
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simul.FFBA6D2C.Up2Date
+C:/FH Salzburg/5. Semester/BA1/Literatur/Projekt/PV_Simulator/PV_Simulator/bin/Debug/net10.0/data/snow-climatology.template.json
+C:/FH Salzburg/5. Semester/.NET/Projekt/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.exe
+C:/FH Salzburg/5. Semester/.NET/Projekt/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.deps.json
+C:/FH Salzburg/5. Semester/.NET/Projekt/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.runtimeconfig.json
+C:/FH Salzburg/5. Semester/.NET/Projekt/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.dll
+C:/FH Salzburg/5. Semester/.NET/Projekt/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.pdb
+C:/FH Salzburg/5. Semester/.NET/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.GeneratedMSBuildEditorConfig.editorconfig
+C:/FH Salzburg/5. Semester/.NET/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.AssemblyInfoInputs.cache
+C:/FH Salzburg/5. Semester/.NET/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.AssemblyInfo.cs
+C:/FH Salzburg/5. Semester/.NET/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.csproj.CoreCompileInputs.cache
+C:/FH Salzburg/5. Semester/.NET/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.dll
+C:/FH Salzburg/5. Semester/.NET/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/refint/PV_Simulator.dll
+C:/FH Salzburg/5. Semester/.NET/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.pdb
+C:/FH Salzburg/5. Semester/.NET/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.genruntimeconfig.cache
+C:/FH Salzburg/5. Semester/.NET/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/ref/PV_Simulator.dll
+C:/FH Salzburg/5. Semester/.NET/Projekt/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simul.FFBA6D2C.Up2Date
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.exe
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.deps.json
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.runtimeconfig.json
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.dll
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.pdb
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.GeneratedMSBuildEditorConfig.editorconfig
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.AssemblyInfoInputs.cache
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.AssemblyInfo.cs
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.csproj.CoreCompileInputs.cache
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.sourcelink.json
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.dll
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/refint/PV_Simulator.dll
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.pdb
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.genruntimeconfig.cache
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/ref/PV_Simulator.dll
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simul.FFBA6D2C.Up2Date
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/TeamConsoleShared.dll
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/TeamConsoleShared.pdb
+C:/FH Salzburg/5. Semester/.NET/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.csproj.AssemblyReference.cache
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.deps.json
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.runtimeconfig.json
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.dll
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/PV_Simulator.pdb
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/Spectre.Console.dll
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/Spectre.Console.Ansi.dll
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/TeamConsoleShared.dll
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/bin/Debug/net10.0/TeamConsoleShared.pdb
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.csproj.AssemblyReference.cache
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.GeneratedMSBuildEditorConfig.editorconfig
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.AssemblyInfoInputs.cache
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.AssemblyInfo.cs
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.csproj.CoreCompileInputs.cache
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.sourcelink.json
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simul.FFBA6D2C.Up2Date
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.dll
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/refint/PV_Simulator.dll
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.pdb
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/PV_Simulator.genruntimeconfig.cache
+/Users/alex/Github/dotnet-simulator-team-echo/PV_Simulator/PV_Simulator/obj/Debug/net10.0/ref/PV_Simulator.dll

@@ -116,19 +116,21 @@ public sealed class ConsoleDashboard
         double totalDeviceDemandKW,
         bool paused,
         StateOfChargeSummary? rollingSummary,
-        string? notice = null)
+        string? notice = null,
+        string? masterStatus = null)
     {
-        var progress = duration.TotalSeconds <= 0 ? 0 : Math.Clamp(elapsed.TotalSeconds / duration.TotalSeconds, 0, 1);
         var inflowKW = Math.Max(0, targetPowerKW);
         var outflowKW = Math.Max(0, totalDeviceDemandKW);
         var totalFlowKW = inflowKW - outflowKW;
+        var masterText = string.IsNullOrWhiteSpace(masterStatus) ? "MASTER: UNKNOWN" : $"MASTER: {masterStatus}";
         var dashboardLines = new List<string>
         {
             "BATTERY ENERGY STORAGE SIMULATOR",
             "════════════════════════════════════════════════════════════",
             "SIMULATION",
             $"  Time       {simulatedTime:yyyy-MM-dd HH:mm}",
-            $"  Progress   {progress:P0}     Mode: {mode}{(paused ? " (Paused)" : string.Empty)}",
+            $"  {masterText}",
+            $"  Mode: {mode}{(paused ? " (Paused)" : string.Empty)}",
             $"  Step       {stepSize.TotalMinutes:g} min simulated / {realTimeStepInterval.TotalSeconds:g} sec real",
             $"  Net   {targetPowerKW:+0.00;-0.00;0.00} kW     Devices: {deviceCount} ({totalDeviceDemandKW:F2} kW load)",
         };
@@ -160,7 +162,7 @@ public sealed class ConsoleDashboard
             $"NOTICE  {notice ?? "Operating"}"
         ]);
         var fullDashboard = dashboardLines.ToArray();
-        var statusLine = $"{simulatedTime:yyyy-MM-dd HH:mm:ss} {progress:P0} {mode}{(paused ? " (Paused)" : string.Empty)} | SOC {battery.StateOfChargePercent:F2}% | Battery {battery.CurrentPowerKW:+0.00;-0.00;0.00} kW | In {inflowKW:F2} / Out {outflowKW:F2} / Net {totalFlowKW:F2} kW";
+        var statusLine = $"{simulatedTime:yyyy-MM-dd HH:mm:ss} {mode}{(paused ? " (Paused)" : string.Empty)} | {masterText} | SOC {battery.StateOfChargePercent:F2}% | Battery {battery.CurrentPowerKW:+0.00;-0.00;0.00} kW | In {inflowKW:F2} / Out {outflowKW:F2} / Net {totalFlowKW:F2} kW";
 
         if (Console.IsOutputRedirected || Console.IsErrorRedirected)
         {
