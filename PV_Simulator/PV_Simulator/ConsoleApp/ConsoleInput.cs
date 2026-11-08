@@ -33,9 +33,8 @@ public sealed class ConsoleInput
             AnsiConsole.MarkupLine("[yellow]Bitte 1 oder 2 auswählen.[/]");
         }
 
-        var startTime = new SimulationDateSelector().ReadStartTime();
         var settings = new SimulationSettings(
-            startTime,
+            DateTimeOffset.UtcNow,
             configuration.Settings.TimeStep,
             configuration.Settings.SpeedMultiplier);
         var weatherSettings = ReadWeatherSettings();
@@ -65,13 +64,11 @@ public sealed class ConsoleInput
         var inverterPower = ReadRequiredDouble("Maximale Wechselrichter-Ausgangsleistung in kW", 0.01, 1_000_000);
         var failureProbability = ReadDouble("Wechselrichter-Ausfallwahrscheinlichkeit in % pro Stunde", 0, 100, SimulationDefaults.InverterFailureProbabilityPerHour * 100) / 100;
         var repairMinutes = ReadDouble("Mittlere Reparaturdauer in Minuten", double.Epsilon, 1_000_000, SimulationDefaults.InverterRepairDuration.TotalMinutes);
-        var stepMinutes = ReadDouble("Simulationsschritt in Minuten", double.Epsilon, 1440, SimulationDefaults.SimulationTimeStep.TotalMinutes);
-        var speed = ReadDouble("Anfängliche Zeitraffer-Geschwindigkeit (simulierte Sekunden pro Echtsekunde)", double.Epsilon, 1_000_000, SimulationDefaults.SimulationSpeedMultiplier);
         return new SimulationConfiguration(
             new Location(name, latitude, longitude, elevation),
             new PvArray(deviceId, peakPower, tilt, azimuth),
             new Inverter(inverterPower, failureProbability, TimeSpan.FromMinutes(repairMinutes)),
-            new SimulationSettings(defaultSettings.StartTime, TimeSpan.FromMinutes(stepMinutes), speed),
+            new SimulationSettings(DateTimeOffset.UtcNow, defaultSettings.TimeStep, defaultSettings.SpeedMultiplier),
             new WeatherSettings(null));
     }
 
@@ -172,8 +169,8 @@ public sealed class ConsoleInput
         table.AddRow("Standort", $"{configuration.Location.Name} ({configuration.Location.Latitude:F2}°, {configuration.Location.Longitude:F2}°, {configuration.Location.ElevationMeters} m)");
         table.AddRow("PV-Anlage", $"{configuration.Array.DeviceId} | {configuration.Array.ModuleNominalPowerKilowattsPeak:F2} kWp (Neigung: {configuration.Array.TiltDegrees}°, Azimut: {configuration.Array.AzimuthDegrees}°)");
         table.AddRow("Wechselrichter", $"{configuration.Inverter.RatedPowerKilowatts:F2} kW | Ausfallrate: {configuration.Inverter.FailureProbabilityPerHour:P0}/h");
-        table.AddRow("Startzeit", $"{configuration.Settings.StartTime:dd.MM.yyyy HH:mm} Uhr Ortszeit");
-        table.AddRow("Taktung", $"{configuration.Settings.TimeStep.TotalMinutes:0} min Schritt | {configuration.Settings.SpeedMultiplier}x Tempo");
+        table.AddRow("Startzeit", "Wird vom Simulation Master übernommen");
+        table.AddRow("Taktung", "Wird vom Simulation Master gesteuert");
         table.AddRow("Wetter", $"Automatisch | Seed: {configuration.WeatherSettings.RandomSeed?.ToString(CultureInfo.CurrentCulture) ?? "zufällig"}");
 
         AnsiConsole.Write(table);

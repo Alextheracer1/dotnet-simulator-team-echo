@@ -21,9 +21,25 @@ public sealed class SimulationHeader
 
     public IRenderable Build()
     {
+        int consoleWidth = 120;
+        if (!Console.IsOutputRedirected)
+        {
+            try
+            {
+                consoleWidth = Console.WindowWidth;
+            }
+            catch
+            {
+                // Fallback to default width
+            }
+        }
+
+        var isCompact = consoleWidth < 105;
+        var isVeryCompact = consoleWidth < 85;
+
         var grid = new Grid().Expand();
-        grid.AddColumn(new GridColumn().LeftAligned());
-        grid.AddColumn(new GridColumn().RightAligned());
+        grid.AddColumn(new GridColumn().LeftAligned().NoWrap());
+        grid.AddColumn(new GridColumn().RightAligned().NoWrap());
 
         // Left side: Title + Network / Subtitle
         var titlePart = $"[bold white]{Markup.Escape(Title)}[/]";
@@ -39,9 +55,23 @@ public sealed class SimulationHeader
             leftLine2.Add($"[grey62]Unit:[/] [bold cyan]{ModbusUnitId.Value}[/]");
         }
 
-        if (!string.IsNullOrWhiteSpace(Subtitle))
+        if (!string.IsNullOrWhiteSpace(Subtitle) && !isVeryCompact)
         {
-            leftLine2.Add($"[grey62]{Markup.Escape(Subtitle)}[/]");
+            var subtitleText = Subtitle;
+            if (isCompact)
+            {
+                // Cleanly shorten verbose subtitles in compact view
+                if (subtitleText.Contains("Lithium-Eisenphosphat", StringComparison.OrdinalIgnoreCase))
+                    subtitleText = "BESS Speicher";
+                else if (subtitleText.Contains("Schnellladestation", StringComparison.OrdinalIgnoreCase))
+                    subtitleText = "DC-Lader";
+                else if (subtitleText.Contains("Zeitsynchronisation", StringComparison.OrdinalIgnoreCase))
+                    subtitleText = "Zentraler Taktgeber";
+                else if (subtitleText.StartsWith("Feldgerät: ", StringComparison.OrdinalIgnoreCase))
+                    subtitleText = subtitleText["Feldgerät: ".Length..];
+            }
+
+            leftLine2.Add($"[grey62]{Markup.Escape(subtitleText)}[/]");
         }
 
         var leftContent = leftLine2.Count > 0
@@ -63,13 +93,19 @@ public sealed class SimulationHeader
         var rightLine2 = new List<string>();
         if (SimulatedTime.HasValue)
         {
-            var formattedTime = SimulatedTime.Value.ToString(TimeFormat ?? "yyyy-MM-dd HH:mm:ss");
+            var timePattern = isVeryCompact ? "HH:mm:ss" : (TimeFormat ?? "yyyy-MM-dd HH:mm:ss");
+            var formattedTime = SimulatedTime.Value.ToString(timePattern);
             rightLine2.Add($"[grey62]Sim-Zeit:[/] [bold gold1]{formattedTime}[/]");
         }
 
         if (!string.IsNullOrWhiteSpace(SpeedDescription))
         {
-            rightLine2.Add($"[grey62]Tempo:[/] [bold white]{Markup.Escape(SpeedDescription)}[/]");
+            var speedText = SpeedDescription;
+            if (isVeryCompact && speedText.Contains("min Sim = 1 s Real", StringComparison.OrdinalIgnoreCase))
+            {
+                speedText = speedText.Replace(" min Sim = 1 s Real", "m/s", StringComparison.OrdinalIgnoreCase);
+            }
+            rightLine2.Add($"[grey62]Tempo:[/] [bold white]{Markup.Escape(speedText)}[/]");
         }
 
         var rightContent = $"{string.Join(" ", rightLine1)}\n{string.Join(" [grey35]|[/] ", rightLine2)}";

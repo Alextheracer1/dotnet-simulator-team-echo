@@ -31,7 +31,7 @@ public static class SimulationTheme
             try
             {
                 Console.CursorVisible = false;
-                Console.Clear();
+                ResetConsole();
                 _lastWidth = Console.WindowWidth;
                 _lastHeight = Console.WindowHeight;
             }
@@ -43,8 +43,71 @@ public static class SimulationTheme
     }
 
     /// <summary>
+    /// Completely clears the console screen and scrollback buffer, resets the cursor to (0, 0),
+    /// and resets the window scroll position on Windows to guarantee a 100% clean canvas.
+    /// </summary>
+    public static void ResetConsole()
+    {
+        if (Console.IsOutputRedirected) return;
+
+        try
+        {
+            // \x1b[3J clears the entire scrollback history buffer in VT-compliant terminals
+            // \x1b[2J clears the visible screen
+            // \x1b[H moves cursor to row 1, col 1
+            Console.Write("\x1b[3J\x1b[2J\x1b[H");
+        }
+        catch
+        {
+            // Fallback for redirected or constrained console environments
+        }
+
+        try
+        {
+            Console.Clear();
+        }
+        catch
+        {
+            // Fallback for redirected or constrained console environments
+        }
+
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Console.SetWindowPosition(0, 0);
+            }
+            Console.SetCursorPosition(0, 0);
+        }
+        catch
+        {
+            // Fallback for redirected or constrained console environments
+        }
+    }
+
+    /// <summary>
+    /// Checks whether the console window dimensions have changed since the last frame.
+    /// </summary>
+    public static bool CheckResize()
+    {
+        if (Console.IsOutputRedirected) return false;
+
+        try
+        {
+            int currentWidth = Console.WindowWidth;
+            int currentHeight = Console.WindowHeight;
+
+            return _lastWidth != -1 && (currentWidth != _lastWidth || currentHeight != _lastHeight);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Resets the cursor to (0, 0) for flicker-free in-place re-rendering.
-    /// Automatically clears the console screen buffer if a terminal resize is detected.
+    /// Automatically performs a full console reset if a terminal resize is detected.
     /// </summary>
     public static void PrepareFrame()
     {
@@ -59,7 +122,7 @@ public static class SimulationTheme
 
                     if (_lastWidth == -1 || currentWidth != _lastWidth || currentHeight != _lastHeight)
                     {
-                        Console.Clear();
+                        ResetConsole();
                         _lastWidth = currentWidth;
                         _lastHeight = currentHeight;
                     }

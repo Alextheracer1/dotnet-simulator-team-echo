@@ -11,6 +11,5 @@
   <Project Path="RabbitMqViewer/RabbitMqViewer.csproj" />
   <Project Path="TeamRabbitMQShared.Tests/TeamRabbitMQShared.Tests.csproj" />
   <Project Path="TeamConsoleShared/TeamConsoleShared.csproj" />
+  <Project Path="WeatherSimulator/WeatherSimulator.csproj" />
 </Solution>
-
-

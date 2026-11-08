@@ -16,11 +16,11 @@ public sealed class ConsoleStatusRenderer
         Location location,
         PvArray array,
         Inverter inverter,
-        SimulationSettings settings,
         TimeSpan duration,
         double speedMultiplier,
         int totalSteps,
-        string selectedWeatherControl)
+        string selectedWeatherControl,
+        TimeSpan masterTimeStep)
     {
         if (Console.IsOutputRedirected || Console.IsErrorRedirected)
         {
@@ -37,7 +37,7 @@ public sealed class ConsoleStatusRenderer
                 h.ModbusPort = 1504;
                 h.ModbusUnitId = 1;
                 h.SimulatedTime = snapshot.SimulatedAt.DateTime;
-                h.SpeedDescription = $"{speedMultiplier:0.##}x Tempo ({settings.TimeStep.TotalMinutes:0.#}m/Schritt)";
+                h.SpeedDescription = $"{speedMultiplier:0.##}x Tempo ({masterTimeStep:c}/Master-Schritt)";
                 h.ModeBadgeMarkup = StatusBadge.Mode(!snapshot.Weather.CloudCoverManuallyOverridden && !snapshot.Weather.TemperatureManuallyOverridden);
                 h.StatusBadgeMarkup = snapshot.ManualFaultActive || snapshot.InverterStatus == InverterStatus.Faulted
                     ? StatusBadge.Fault(snapshot.InverterStatus.ToString().ToUpperInvariant())
@@ -88,12 +88,12 @@ public sealed class ConsoleStatusRenderer
         dashboard.WithKeyBindings(
             ("C", "Wolken"),
             ("T", "Temperatur"),
-            ("+/-", "Wert/Tempo"),
+            ("+/-", "Wert / Master steuert Tempo"),
             ("A", "Automatik"),
             ("R", "Regen"),
             ("S", "Schnee"),
             ("F", "Fehler"),
-            ("P", "Pause")
+            ("P", "Pause via Master")
         );
 
         dashboard.Render();

@@ -25,6 +25,19 @@ try
     var inverter = configuration.Inverter;
     var settings = configuration.Settings;
     var weatherSettings = configuration.WeatherSettings;
+    var masterHost = Environment.GetEnvironmentVariable("SIMULATION_MASTER_HOST") ?? "127.0.0.1";
+    var masterPort = GetSimulationMasterPort();
+    await using var masterClient = new PvSimulationMasterClient(
+        masterHost,
+        masterPort,
+        $"{Environment.MachineName}-PV-{array.DeviceId}");
+    await masterClient.ConnectWithRetryAsync();
+    var masterEnvironment = await masterClient.RequestEnvironmentAsync()
+        ?? throw new IOException("Der Simulation Master hat keine Startzeit geliefert.");
+    settings = new SimulationSettings(
+        new DateTimeOffset(DateTime.SpecifyKind(masterEnvironment.VirtualTime, DateTimeKind.Utc)),
+        settings.TimeStep,
+        settings.SpeedMultiplier);
     using var deviceIdLease = new DeviceIdLease(array.DeviceId);
     var engine = new SimulationEngine(location, array, inverter, settings, weatherSettings);
     var renderer = new ConsoleStatusRenderer();
@@ -73,4 +86,16 @@ catch (OperationCanceledException)
 catch (Exception exception) when (exception is IOException or InvalidDataException or InvalidOperationException or ArgumentException)
 {
     AnsiConsole.MarkupLine($"[bold red]Simulation konnte nicht gestartet werden:[/] {Markup.Escape(exception.Message)}");
+}
+
+static int GetSimulationMasterPort()
+{
+    var value = Environment.GetEnvironmentVariable("SIMULATION_MASTER_PORT");
+    if (string.IsNullOrWhiteSpace(value))
+        return 1510;
+
+    if (int.TryParse(value, out var port) && port is >= 1 and <= 65535)
+        return port;
+
+    throw new InvalidOperationException("SIMULATION_MASTER_PORT muss einen TCP-Port von 1 bis 65535 enthalten.");
 }
