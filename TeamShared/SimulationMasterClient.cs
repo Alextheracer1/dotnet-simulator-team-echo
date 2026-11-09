@@ -12,6 +12,7 @@ public sealed class SimulationMasterClient : ITimeMasterClient
     private readonly string _host;
     private readonly int _port;
     private readonly string _stationId;
+    private readonly string _stationType;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private readonly ConcurrentQueue<SimulationMessage> _pendingMessages = new();
@@ -24,8 +25,9 @@ public sealed class SimulationMasterClient : ITimeMasterClient
     private TimeSpan _lastKnownTimeStep = TimeSpan.FromSeconds(1);
     private SimulationEnvironment? _lastEnvironment;
     private bool _hasStationTime;
+    private bool _hasCompletedRegistration;
 
-    public SimulationMasterClient(string host, int port, string stationId)
+    public SimulationMasterClient(string host, int port, string stationId, string stationType = "pv")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(host);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(port);
@@ -33,6 +35,7 @@ public sealed class SimulationMasterClient : ITimeMasterClient
         _host = host;
         _port = port;
         _stationId = stationId;
+        _stationType = stationType;
     }
 
     public bool IsConnected => Volatile.Read(ref _connected) == 1;
@@ -59,10 +62,22 @@ public sealed class SimulationMasterClient : ITimeMasterClient
         }
     }
 
-    public void UpdateStationTime(DateTime virtualTime)
+    public void UpdateStationTime(DateTime virtualTime, TimeSpan? timeStep = null)
     {
         _lastKnownVirtualTime = virtualTime;
         _hasStationTime = true;
+        if (timeStep.HasValue && timeStep.Value > TimeSpan.Zero)
+        {
+            _lastKnownTimeStep = timeStep.Value;
+        }
+    }
+
+    public void UpdateStationTimeStep(TimeSpan timeStep)
+    {
+        if (timeStep > TimeSpan.Zero)
+        {
+            _lastKnownTimeStep = timeStep;
+        }
     }
 
     private async Task ConnectAsync(CancellationToken cancellationToken)
@@ -112,6 +127,8 @@ public sealed class SimulationMasterClient : ITimeMasterClient
                 {
                     Type = SimulationMessageTypes.Register,
                     StationId = _stationId,
+                    StationType = _stationType,
+                    HasPreviouslyConnected = _hasCompletedRegistration,
                     VirtualTime = _hasStationTime ? _lastKnownVirtualTime : environment.VirtualTime,
                     TimeStep = _lastKnownTimeStep,
                     IsRunning = false
@@ -120,8 +137,17 @@ public sealed class SimulationMasterClient : ITimeMasterClient
                 if (!IsConnected)
                     throw new IOException("Connection to the Time Master was lost during registration.");
 
-                _pendingMessages.Enqueue(environment);
-                UpdateLastKnown(environment);
+                var registeredEnvironmentLine = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+                if (registeredEnvironmentLine is null)
+                    throw new IOException("Master closed the connection before confirming station registration.");
+
+                var registeredEnvironment = Deserialize(registeredEnvironmentLine);
+                if (registeredEnvironment.Type is not (SimulationMessageTypes.Environment or SimulationMessageTypes.TimeReconciliation or SimulationMessageTypes.TimeStepReconciliation))
+                    throw new IOException($"Expected registration environment, received '{registeredEnvironment.Type}'.");
+
+                _pendingMessages.Enqueue(registeredEnvironment);
+                UpdateLastKnown(registeredEnvironment);
+                _hasCompletedRegistration = true;
             }
             catch
             {
@@ -196,7 +222,7 @@ public sealed class SimulationMasterClient : ITimeMasterClient
         bool disconnectOnFailure = true)
     {
         var writer = _writer;
-        if (!IsConnected || writer is null)
+        if (writer is null)
             throw new IOException("The Time Master connection is not available.");
 
         await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -230,7 +256,7 @@ public sealed class SimulationMasterClient : ITimeMasterClient
         }
         if (message.TimeStep > TimeSpan.Zero)
             _lastKnownTimeStep = message.TimeStep;
-        if (message.Type is SimulationMessageTypes.Environment or SimulationMessageTypes.TimeStep)
+        if (message.Type is SimulationMessageTypes.Environment or SimulationMessageTypes.TimeStep or SimulationMessageTypes.TimeReconciliation or SimulationMessageTypes.TimeStepReconciliation)
         {
             Volatile.Write(ref _lastEnvironment, new SimulationEnvironment(
                 _lastKnownVirtualTime,

@@ -50,6 +50,7 @@ public sealed class BatteryModel
             return;
         }
 
+
         var requested = Math.Clamp(requestedPowerKW, -MaximumDischargePowerKW, MaximumChargePowerKW);
         if (requested > 0)
         {

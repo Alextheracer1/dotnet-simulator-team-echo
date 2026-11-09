@@ -9,6 +9,8 @@ public static class SimulationMessageTypes
     public const string State = "State";
     public const string TimeStep = "TimeStep";
     public const string Acknowledgement = "Acknowledgement";
+    public const string TimeReconciliation = "TimeReconciliation";
+    public const string TimeStepReconciliation = "TimeStepReconciliation";
     public const string Error = "Error";
 }
 
@@ -17,6 +19,8 @@ public sealed class SimulationMessage
 {
     public string Type { get; set; } = string.Empty;
     public string? StationId { get; set; }
+    public string? StationType { get; set; }
+    public bool HasPreviouslyConnected { get; set; }
     public long Sequence { get; set; }
     public DateTime VirtualTime { get; set; }
     public DateTime PreviousVirtualTime { get; set; }
@@ -27,6 +31,8 @@ public sealed class SimulationMessage
     public double? ActivePowerKW { get; set; }
     public double? CumulativeEnergyKWh { get; set; }
     public double? StateOfChargePercent { get; set; }
+    public double? StateOfChargePercentPort1 { get; set; }
+    public double? StateOfChargePercentPort2 { get; set; }
     public double? SetpointKW { get; set; }
 }
 

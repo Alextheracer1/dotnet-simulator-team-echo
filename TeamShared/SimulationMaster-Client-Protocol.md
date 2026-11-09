@@ -29,7 +29,7 @@ Example client messages (each object is sent on a single line):
 {"type":"Register","stationId":"pv-simulator-01","virtualTime":"2026-01-01T00:00:00Z","timeStep":"00:00:01","isRunning":false}
 ```
 
-A station that has no saved virtual time can use the time from the environment snapshot. When recovering from a master restart, report the station's latest known time in `Register`. While the master is paused, it reconciles forward to a later station time; it never moves backward. Registration time is not used to reconcile the master while it is running.
+A station that has no saved virtual time uses the time from the registration environment. Battery and Dual-Port-Charger clients mark returning registrations and report their last known virtual time and time step. The master collects returning Battery/Charger timestamps and time steps for five master ticks, then sets its clock to the exact median timestamp and its step duration to the exact median time step (the middle value for an odd count, or the arithmetic mean of the two middle values for an even count). If no returning Battery/Charger timestamps or time steps are collected, the registration environment uses the master's current time and time step. This reconciliation can move the master and participating Battery/Charger clocks backward or adjust their tick speed; device model state is not rolled back. PV registrations are not included in this reconciliation.
 
 Only registered connections participate in timestep ACK barriers.
 
@@ -39,10 +39,12 @@ Only registered connections participate in timestep ACK barriers.
 | --- | --- | --- |
 | `EnvironmentRequest` | Client → Master | Request a current environment snapshot. |
 | `Environment` | Master → Client | Snapshot of committed virtual time, current sequence, running state, and configured timestep. |
-| `Register` | Client → Master | Register the station and provide its last known virtual time. |
+| `Register` | Client → Master | Register the station and provide its last known virtual time and time step. |
 | `TimeStep` | Master → Client | Ask the simulator to advance from `previousVirtualTime` to `virtualTime`. |
 | `State` | Client → Master | Optional station state/telemetry report. The current master accepts this message but does not use it to update its clock. |
 | `Acknowledgement` | Client → Master | Confirm that the station completed the specified `TimeStep`. |
+| `TimeReconciliation` | Master → Battery/Charger | Apply the master's median reconnect timestamp; does not rewind device model state. |
+| `TimeStepReconciliation` | Master → Battery/Charger | Apply the master's median reconnect time step; adjusts tick speed without rewinding device model state. |
 | `Error` | Master → Client | Error response, for example when a JSON line cannot be parsed. |
 
 The common message fields are:

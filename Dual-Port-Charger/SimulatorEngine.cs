@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Channels;
 using System.Threading;
 using System.Threading.Tasks;
 using TeamShared;
@@ -22,7 +23,7 @@ namespace Dual_Port_Charger
         private readonly SimulationMasterClient? _simulationMasterClient;
         private bool _isRunning = true;
         private bool _locallyPaused;
-        private bool _hasAdvanced;
+        private bool _hasReceivedMasterEnvironment;
         
         private readonly FieldDeviceModbusServer _modbusServer;
         private readonly IRabbitMqPublisher _rabbitPublisher;
@@ -30,10 +31,13 @@ namespace Dual_Port_Charger
 
         public bool AutoMode { get; private set; } = true;
         public DateTime SimulatedTime { get; private set; }
+        public TimeSpan TickDuration { get; private set; }
+        public bool IsPaused { get; private set; }
         public int DelayMs { get; private set; } = 1000;
 
         public bool RabbitMqConnected => _rabbitPublisher.IsConnected;
         public long RabbitMqPublishedCount => _rabbitPublisher.PublishedCount;
+        public string MasterSyncStatus { get; private set; }
 
         public SimulatorEngine(
             Device device,
@@ -43,8 +47,10 @@ namespace Dual_Port_Charger
         {
             _device = device;
             _timeStep = timeStep;
+            TickDuration = timeStep;
             _logFilePath = logFilePath;
             _simulationMasterClient = simulationMasterClient;
+            MasterSyncStatus = simulationMasterClient is null ? "FALLBACK (NO MASTER)" : "CONNECTING";
             _modbusServer = new FieldDeviceModbusServer(1502, 1);
             
             var rabbitConfig = RabbitMqConfiguration.CreateDefault();
@@ -68,22 +74,19 @@ namespace Dual_Port_Charger
         public async Task StartAsync(Action renderUi, CancellationToken cancellationToken = default)
         {
             Console.Clear();
-            var simulationStartTime = SimulatedTime;
-            var endTime = SimulatedTime.AddHours(24);
+            renderUi();
 
             _modbusServer.Start();
-            await _rabbitPublisher.StartAsync();
-            await _rabbitConsumer.StartAsync();
-
-            // Subscribe to RabbitMQ remote commands
-            await _rabbitConsumer.SubscribeCommandsAsync("sim.commands.charger.#", async cmd =>
+            var telemetry = Channel.CreateBounded<DeviceTelemetryMessage>(new BoundedChannelOptions(1)
             {
-                await HandleRemoteCommandAsync(cmd);
+                FullMode = BoundedChannelFullMode.DropOldest,
+                SingleReader = true,
+                SingleWriter = true
             });
-            await _rabbitConsumer.SubscribeCommandsAsync("sim.commands.*.charger-1", async cmd =>
-            {
-                await HandleRemoteCommandAsync(cmd);
-            });
+            using var rabbitCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var rabbitWorkerTask = Task.Run(
+                () => RunRabbitMqAsync(telemetry.Reader, rabbitCancellation.Token),
+                CancellationToken.None);
 
             try 
             {
@@ -95,7 +98,7 @@ namespace Dual_Port_Charger
                 using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(100));
                 var timerTask = timer.WaitForNextTickAsync(cancellationToken).AsTask();
 
-                while (_isRunning && SimulatedTime < endTime && !cancellationToken.IsCancellationRequested)
+                while (_isRunning && !cancellationToken.IsCancellationRequested)
                 {
                     var waitTasks = new List<Task> { timerTask };
                     if (masterMessageTask is not null)
@@ -110,7 +113,10 @@ namespace Dual_Port_Charger
                         await connectionTask.ConfigureAwait(false);
                         connectionTask = null;
                         masterConnected = true;
+                        MasterSyncStatus = "CONNECTED";
+                        renderUi();
                         _simulationMasterClient!.UpdateStationTime(SimulatedTime);
+                        await _simulationMasterClient.SendStateAsync(CreateChargerState(), cancellationToken).ConfigureAwait(false);
                         masterMessageTask = _simulationMasterClient.WaitForNextMessageAsync(cancellationToken);
                         continue;
                     }
@@ -122,6 +128,9 @@ namespace Dual_Port_Charger
                         if (message is null)
                         {
                             masterConnected = false;
+                            MasterSyncStatus = "DISCONNECTED - LOCAL FALLBACK";
+                            ResetMasterClockState();
+                            renderUi();
                             fallbackAccumulator = TimeSpan.Zero;
                             lastClockTimestamp = Stopwatch.GetTimestamp();
                             if (connectionTask is null && _simulationMasterClient is not null)
@@ -129,36 +138,49 @@ namespace Dual_Port_Charger
                         }
                         else
                         {
-                            if (message.Type == SimulationMessageTypes.Environment && !_hasAdvanced && message.VirtualTime != default)
+                            if (message.Type is SimulationMessageTypes.Environment or SimulationMessageTypes.TimeReconciliation or SimulationMessageTypes.TimeStepReconciliation)
                             {
-                                SimulatedTime = message.VirtualTime;
-                                simulationStartTime = SimulatedTime;
-                                endTime = simulationStartTime.AddHours(24);
-                                _simulationMasterClient!.UpdateStationTime(SimulatedTime);
+                                if (message.TimeStep > TimeSpan.Zero)
+                                    TickDuration = message.TimeStep;
+                                IsPaused = !message.IsRunning;
+
+                                if (message.VirtualTime != default &&
+                                    (message.Type is SimulationMessageTypes.TimeReconciliation or SimulationMessageTypes.TimeStepReconciliation || !_hasReceivedMasterEnvironment))
+                                {
+                                    SimulatedTime = message.VirtualTime;
+                                    _simulationMasterClient!.UpdateStationTime(SimulatedTime);
+                                    _hasReceivedMasterEnvironment = true;
+                                    if (message.Type is SimulationMessageTypes.TimeReconciliation or SimulationMessageTypes.TimeStepReconciliation)
+                                    {
+                                        UpdateModbusRegisters();
+                                    }
+                                }
+
+                                renderUi();
                             }
                             else if (message.Type == SimulationMessageTypes.TimeStep)
                             {
+                                if (message.TimeStep > TimeSpan.Zero)
+                                    TickDuration = message.TimeStep;
+                                IsPaused = !message.IsRunning;
+
                                 var targetTime = DateTime.SpecifyKind(message.VirtualTime, DateTimeKind.Utc);
                                 var timeStep = targetTime - SimulatedTime;
-                                if (timeStep > TimeSpan.Zero)
+                                var advanced = message.IsRunning && timeStep > TimeSpan.Zero;
+                                if (advanced)
                                 {
                                     SimulatedTime = targetTime;
-                                    await AdvanceAndPublishAsync(timeStep, renderUi).ConfigureAwait(false);
-                                    _hasAdvanced = true;
+                                    AdvanceAndPublish(timeStep, renderUi, telemetry.Writer);
                                 }
 
+                                SimulatedTime = targetTime;
                                 _simulationMasterClient!.UpdateStationTime(targetTime);
+                                if (!advanced)
+                                    renderUi();
+
                                 try
                                 {
-                                    await _simulationMasterClient.SendStateAsync(new SimulationMessage
-                                    {
-                                        VirtualTime = targetTime,
-                                        Sequence = message.Sequence,
-                                        IsOn = !_device.Fault,
-                                        Status = _device.Status,
-                                        ActivePowerKW = (double)(_device.ActivePower / 1000m),
-                                        CumulativeEnergyKWh = (double)(_device.Energy / 1000m)
-                                    }, cancellationToken).ConfigureAwait(false);
+                                    await _simulationMasterClient.SendStateAsync(CreateChargerState(message.Sequence), cancellationToken).ConfigureAwait(false);
                                     await _simulationMasterClient.SendAcknowledgementAsync(
                                         message.Sequence,
                                         targetTime,
@@ -167,6 +189,9 @@ namespace Dual_Port_Charger
                                 catch (IOException)
                                 {
                                     masterConnected = false;
+                                    MasterSyncStatus = "DISCONNECTED - LOCAL FALLBACK";
+                                    ResetMasterClockState();
+                                    renderUi();
                                     fallbackAccumulator = TimeSpan.Zero;
                                     lastClockTimestamp = Stopwatch.GetTimestamp();
                                     if (connectionTask is null)
@@ -179,6 +204,9 @@ namespace Dual_Port_Charger
                             else if (masterConnected)
                             {
                                 masterConnected = false;
+                                MasterSyncStatus = "DISCONNECTED - LOCAL FALLBACK";
+                                ResetMasterClockState();
+                                renderUi();
                                 fallbackAccumulator = TimeSpan.Zero;
                                 lastClockTimestamp = Stopwatch.GetTimestamp();
                                 if (connectionTask is null)
@@ -209,18 +237,15 @@ namespace Dual_Port_Charger
                     if (setpoint > 0)
                         _device.SetPowerLimit((decimal)setpoint);
 
-                    if (!masterConnected && !_locallyPaused)
+                    if (_simulationMasterClient?.IsConnected != true && !_locallyPaused)
                     {
                         fallbackAccumulator += wallElapsed;
-                        while (fallbackAccumulator.TotalMilliseconds >= DelayMs && SimulatedTime < endTime)
+                        while (fallbackAccumulator.TotalMilliseconds >= DelayMs)
                         {
-                            var stepDuration = _timeStep <= endTime - SimulatedTime
-                                ? _timeStep
-                                : endTime - SimulatedTime;
-                            SimulatedTime += stepDuration;
-                            await AdvanceAndPublishAsync(stepDuration, renderUi).ConfigureAwait(false);
+                            var stepToAdvance = TickDuration > TimeSpan.Zero ? TickDuration : _timeStep;
+                            SimulatedTime += stepToAdvance;
+                            AdvanceAndPublish(stepToAdvance, renderUi, telemetry.Writer);
                             _simulationMasterClient?.UpdateStationTime(SimulatedTime);
-                            _hasAdvanced = true;
                             fallbackAccumulator -= TimeSpan.FromMilliseconds(DelayMs);
                         }
                     }
@@ -230,25 +255,34 @@ namespace Dual_Port_Charger
             }
             finally 
             {
+                rabbitCancellation.Cancel();
+                telemetry.Writer.TryComplete();
+                try
+                {
+                    await rabbitWorkerTask.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (rabbitCancellation.IsCancellationRequested)
+                {
+                }
                 _modbusServer.Stop();
                 await _rabbitPublisher.StopAsync();
                 await _rabbitConsumer.StopAsync();
             }
             
             Console.SetCursorPosition(0, 24);
-            Console.WriteLine("Simulation beendet (24h erreicht oder manuell abgebrochen).");
+            Console.WriteLine("Simulation beendet.");
         }
 
-        private async Task AdvanceAndPublishAsync(TimeSpan timeStep, Action renderUi)
+        private void AdvanceAndPublish(TimeSpan timeStep, Action renderUi, ChannelWriter<DeviceTelemetryMessage> telemetry)
         {
             UpdateSimulation(timeStep);
             UpdateModbusRegisters();
-            await PublishRabbitMqTelemetryAsync();
+            QueueRabbitMqTelemetry(telemetry);
             LogData();
             renderUi();
         }
 
-        private async Task PublishRabbitMqTelemetryAsync()
+        private void QueueRabbitMqTelemetry(ChannelWriter<DeviceTelemetryMessage> telemetryWriter)
         {
             var telemetry = new DeviceTelemetryMessage
             {
@@ -272,7 +306,58 @@ namespace Dual_Port_Charger
             telemetry.SetMetric("ActivePower1", (double)_device.ChargingPoints[0].ActivePower);
             telemetry.SetMetric("ActivePower2", (double)_device.ChargingPoints[1].ActivePower);
 
-            await _rabbitPublisher.PublishTelemetryAsync(telemetry);
+            telemetryWriter.TryWrite(telemetry);
+        }
+
+        private async Task RunRabbitMqAsync(ChannelReader<DeviceTelemetryMessage> telemetry, CancellationToken cancellationToken)
+        {
+            var subscriptionRegistered = false;
+
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    if (!_rabbitPublisher.IsConnected)
+                        await TryStartRabbitComponentAsync(() => _rabbitPublisher.StartAsync(cancellationToken), cancellationToken).ConfigureAwait(false);
+
+                    if (!_rabbitConsumer.IsConnected)
+                        await TryStartRabbitComponentAsync(() => _rabbitConsumer.StartAsync(cancellationToken), cancellationToken).ConfigureAwait(false);
+
+                    if (!subscriptionRegistered)
+                    {
+                        await _rabbitConsumer.SubscribeCommandsAsync("sim.commands.charger.#", HandleRemoteCommandAsync, cancellationToken).ConfigureAwait(false);
+                        await _rabbitConsumer.SubscribeCommandsAsync("sim.commands.*.charger-1", HandleRemoteCommandAsync, cancellationToken).ConfigureAwait(false);
+                        subscriptionRegistered = true;
+                    }
+
+                    if (_rabbitPublisher.IsConnected && telemetry.TryRead(out var message))
+                    {
+                        await _rabbitPublisher.PublishTelemetryAsync(message, cancellationToken: cancellationToken).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
+        }
+
+        private static async Task TryStartRabbitComponentAsync(Func<Task> start, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await start().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch
+            {
+                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+            }
         }
 
         private async Task HandleRemoteCommandAsync(DeviceCommandMessage cmd)
@@ -359,7 +444,10 @@ namespace Dual_Port_Charger
                     if (masterConnected)
                         Console.WriteLine("Simulation master controls the clock; use the master to pause or resume.");
                     else
+                    {
                         _locallyPaused = !_locallyPaused;
+                        IsPaused = _locallyPaused;
+                    }
                     break;
                 case ConsoleKey.A:
                     AutoMode = true;
@@ -402,6 +490,35 @@ namespace Dual_Port_Charger
             }
 
             return Task.CompletedTask;
+        }
+
+        private void ResetMasterClockState()
+        {
+            if (TickDuration <= TimeSpan.Zero)
+                TickDuration = _timeStep;
+            IsPaused = _locallyPaused;
+        }
+
+        private SimulationMessage CreateChargerState(long sequence = 0)
+        {
+            return new SimulationMessage
+            {
+                Type = SimulationMessageTypes.State,
+                StationId = "charger-1",
+                StationType = "charger",
+                Sequence = sequence,
+                VirtualTime = SimulatedTime,
+                TimeStep = TickDuration > TimeSpan.Zero ? TickDuration : _timeStep,
+                IsRunning = !IsPaused,
+                IsOn = !_device.Fault,
+                Status = _device.Status,
+                ActivePowerKW = (double)(_device.ActivePower / 1000m),
+                CumulativeEnergyKWh = (double)(_device.Energy / 1000m),
+                StateOfChargePercent = _device.ChargingPoints.Count > 0 ? (double)(_device.ChargingPoints.Average(cp => cp.SOC) * 100m) : null,
+                StateOfChargePercentPort1 = _device.ChargingPoints.Count > 0 ? (double)(_device.ChargingPoints[0].SOC * 100m) : null,
+                StateOfChargePercentPort2 = _device.ChargingPoints.Count > 1 ? (double)(_device.ChargingPoints[1].SOC * 100m) : null,
+                SetpointKW = (double)(_device.Power / 1000m)
+            };
         }
     }
 }

@@ -50,6 +50,7 @@ public sealed class BatterySimulator
     private DateTime? _lastAutoFaultChanceHour;
     private DateTime? _automaticFaultResetTime;
     private bool _hasProcessedMasterStep;
+    private bool _hasReceivedMasterEnvironment;
     private bool _masterControlsPause;
     private BatteryModbusSnapshot? _modbusSnapshot;
     private long _modbusSequence;
@@ -57,6 +58,8 @@ public sealed class BatterySimulator
 
     public IObservable<MeterReading> MeterUpdates => _meterUpdates;
     public SimulationHistory History => _history;
+    public bool RabbitMqConnected => _rabbitPublisher.IsConnected;
+    public long RabbitMqPublishedCount => _rabbitPublisher.PublishedCount;
 
     public BatterySimulator(SimulationOptions options, SimulationMasterClient? simulationMasterClient = null)
     {
@@ -196,7 +199,7 @@ public sealed class BatterySimulator
                             : "RUNNING";
                         if (_simulationMasterClient!.IsConnected)
                             masterMessageTask = _simulationMasterClient.WaitForNextMessageAsync(cancellationToken);
-                        else
+                        else if (_simulationMasterClient is null || masterStatus == "DISCONNECTED - LOCAL FALLBACK")
                         {
                             masterStatus = "DISCONNECTED - LOCAL FALLBACK";
                             _masterControlsPause = false;
@@ -237,6 +240,7 @@ public sealed class BatterySimulator
                                 fallbackElapsed -= _options.RealTimeStepInterval;
                                 simulatedTime = _currentSimulationTime + _masterEnvironment.TimeStep;
                                 await AdvanceBatteryToAsync(simulatedTime, logger, cancellationToken).ConfigureAwait(false);
+                                _simulationMasterClient?.UpdateStationTime(_currentSimulationTime, SimulationTickDuration);
                                 elapsed = simulatedTime - _options.StartTime;
                             }
                         }
@@ -254,7 +258,8 @@ public sealed class BatterySimulator
 
             _dashboard.Render(simulatedTime, elapsed, _options.Duration, _mode, _battery,
                 GetTargetPower(), _deviceLoads.Count,
-                TotalDeviceDemandKW, _paused, _history.GetRollingSummary(), _notice, masterStatus);
+                TotalDeviceDemandKW, _paused, _history.GetRollingSummary(), _notice, masterStatus,
+                simulationTimeStep: SimulationTickDuration);
         }
         finally
         {
@@ -294,7 +299,8 @@ public sealed class BatterySimulator
     {
         _dashboard.Render(simulatedTime, elapsed, _options.Duration, _mode, _battery,
             GetTargetPower(), _deviceLoads.Count,
-            TotalDeviceDemandKW, _paused, _history.GetRollingSummary(), notice, masterStatus);
+            TotalDeviceDemandKW, _paused, _history.GetRollingSummary(), notice, masterStatus,
+            RabbitMqConnected, RabbitMqPublishedCount, SimulationTickDuration);
     }
 
     private string GetMasterStatusText()
@@ -313,6 +319,8 @@ public sealed class BatterySimulator
     }
 
     private double TotalDeviceDemandKW => _deviceLoads.Sum(device => device.PowerDemandKW);
+
+    private TimeSpan SimulationTickDuration => _masterEnvironment?.TimeStep ?? TimeSpan.FromMinutes(30);
 
     private void UpdateAutoScenario(DateTime simulatedTime)
     {
@@ -607,6 +615,39 @@ public sealed class BatterySimulator
 
     private async Task ProcessMasterMessageAsync(SimulationMessage message, CsvSimulationLogger logger, CancellationToken cancellationToken)
     {
+        if (message.Type == SimulationMessageTypes.TimeReconciliation)
+        {
+            _currentSimulationTime = message.VirtualTime;
+            _hasReceivedMasterEnvironment = true;
+            _simulationMasterClient?.UpdateStationTime(message.VirtualTime, message.TimeStep);
+            _masterEnvironment = new SimulationEnvironment(message.VirtualTime, message.Sequence, message.IsRunning, message.TimeStep);
+            _paused = !message.IsRunning;
+            PublishModbusSnapshot();
+            return;
+        }
+
+        if (message.Type == SimulationMessageTypes.TimeStepReconciliation)
+        {
+            if (message.VirtualTime != default)
+            {
+                _currentSimulationTime = message.VirtualTime;
+                _simulationMasterClient?.UpdateStationTime(message.VirtualTime, message.TimeStep);
+            }
+            else if (message.TimeStep > TimeSpan.Zero)
+            {
+                _simulationMasterClient?.UpdateStationTimeStep(message.TimeStep);
+            }
+            _hasReceivedMasterEnvironment = true;
+            _masterEnvironment = new SimulationEnvironment(
+                _currentSimulationTime,
+                message.Sequence,
+                message.IsRunning,
+                message.TimeStep > TimeSpan.Zero ? message.TimeStep : SimulationTickDuration);
+            _paused = !message.IsRunning;
+            PublishModbusSnapshot();
+            return;
+        }
+
         if (message.Type == SimulationMessageTypes.Environment)
         {
             _masterEnvironment = new SimulationEnvironment(
@@ -615,9 +656,11 @@ public sealed class BatterySimulator
                 message.IsRunning,
                 message.TimeStep);
             _paused = !message.IsRunning;
-            if (message.VirtualTime != default && !_hasProcessedMasterStep)
+            if (message.VirtualTime != default && !_hasReceivedMasterEnvironment)
             {
                 _currentSimulationTime = message.VirtualTime;
+                _simulationMasterClient?.UpdateStationTime(message.VirtualTime, message.TimeStep);
+                _hasReceivedMasterEnvironment = true;
                 PublishModbusSnapshot();
             }
 
@@ -631,8 +674,10 @@ public sealed class BatterySimulator
         if (message.IsRunning && message.VirtualTime > _currentSimulationTime)
         {
             await AdvanceBatteryToAsync(message.VirtualTime, logger, cancellationToken).ConfigureAwait(false);
-            _hasProcessedMasterStep = true;
         }
+        _currentSimulationTime = message.VirtualTime;
+        _simulationMasterClient?.UpdateStationTime(_currentSimulationTime, message.TimeStep);
+        _hasProcessedMasterStep = true;
 
         _masterEnvironment = new SimulationEnvironment(
             message.VirtualTime,

@@ -34,6 +34,12 @@ public sealed class SimulationEngine
         _isRunning = false;
     }
 
+    public void SetVirtualTime(DateTime virtualTime)
+    {
+        lock (_syncRoot)
+            _currentVirtualTime = virtualTime;
+    }
+
     public bool IsRunning
     {
         get

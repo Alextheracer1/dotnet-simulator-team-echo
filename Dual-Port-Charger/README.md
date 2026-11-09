@@ -31,7 +31,7 @@ Die Simulation kann zur Laufzeit über die folgenden Tasten live gesteuert werde
 * **Simulationssteuerung**
   * `[+]` / `[-]` - Simulationsgeschwindigkeit anpassen (Echtzeit-Delay pro Sim-Minute verringern/erhöhen).
   * `[P]` - Simulation pausieren / fortsetzen.
-  * `[X]` - Simulation vorzeitig beenden (reguläres Ende nach 24 simulierten Stunden).
+  * `[X]` - Simulation beenden.
 
 ## Modellbeschreibung
 
@@ -57,7 +57,7 @@ Folgende Fahrzeuge sind im Katalog (`EVModelCatalog`) hinterlegt:
 ## Beispielparameter & Annahmen
 
 * **Simulations-Schrittweite:** `1 Minute` (konfigurierbar in `Program.cs`)
-* **Simulations-Dauer:** 24 Stunden (Start: 15.07.2026, 00:00 Uhr)
+* **Simulations-Dauer:** Läuft bis zum manuellen Beenden oder zur Anwendungsschließung (Start: 15.07.2026, 00:00 Uhr).
 * **Gesamtleistung (`TotalStationPower`):** 300.000 Watt (300 kW)
 * **Physikalische Berechnung:** Die zugeführte Energie wird pro Minute aus der anliegenden Wirkleistung exakt auf den jeweiligen Akku aufgeschlagen: `Energy += ActivePower * (1/60h)`.
 

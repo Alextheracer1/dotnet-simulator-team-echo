@@ -24,6 +24,7 @@ public sealed class SimulationMasterClient : ITimeMasterClient
     private TimeSpan _lastKnownTimeStep = TimeSpan.FromSeconds(1);
     private SimulationEnvironment? _lastEnvironment;
     private bool _hasStationTime;
+    private bool _hasCompletedRegistration;
 
     public SimulationMasterClient(string host, int port)
     {
@@ -36,6 +37,24 @@ public sealed class SimulationMasterClient : ITimeMasterClient
     public bool IsConnected => Volatile.Read(ref _connected) == 1;
     public DateTime LastKnownVirtualTime => _lastKnownVirtualTime;
     public TimeSpan LastKnownTimeStep => _lastKnownTimeStep;
+
+    public void UpdateStationTime(DateTime virtualTime, TimeSpan? timeStep = null)
+    {
+        _lastKnownVirtualTime = virtualTime;
+        _hasStationTime = true;
+        if (timeStep.HasValue && timeStep.Value > TimeSpan.Zero)
+        {
+            _lastKnownTimeStep = timeStep.Value;
+        }
+    }
+
+    public void UpdateStationTimeStep(TimeSpan timeStep)
+    {
+        if (timeStep > TimeSpan.Zero)
+        {
+            _lastKnownTimeStep = timeStep;
+        }
+    }
 
     /// <summary>Connects and registers this station, retrying every 15 seconds until cancelled.</summary>
     public Task ConnectWithRetryAsync(CancellationToken cancellationToken = default) =>
@@ -121,16 +140,24 @@ public sealed class SimulationMasterClient : ITimeMasterClient
                 {
                     Type = SimulationMessageTypes.Register,
                     StationId = Environment.MachineName + "-Battery",
+                    StationType = "battery",
+                    HasPreviouslyConnected = _hasCompletedRegistration,
                     VirtualTime = _hasStationTime ? _lastKnownVirtualTime : environment.VirtualTime,
                     TimeStep = _lastKnownTimeStep,
                     IsRunning = false
                 }, cancellationToken).ConfigureAwait(false);
 
-                if (!IsConnected)
-                    throw new IOException("Connection to the Time Master was lost during registration.");
+                var registeredEnvironmentLine = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+                if (registeredEnvironmentLine is null)
+                    throw new IOException("Master closed the connection before confirming Battery registration.");
 
-                _pendingMessages.Enqueue(environment);
-                UpdateLastKnown(environment);
+                var registeredEnvironment = Deserialize(registeredEnvironmentLine);
+                if (registeredEnvironment.Type is not (SimulationMessageTypes.Environment or SimulationMessageTypes.TimeReconciliation or SimulationMessageTypes.TimeStepReconciliation))
+                    throw new IOException($"Expected registration environment, received '{registeredEnvironment.Type}'.");
+
+                _pendingMessages.Enqueue(registeredEnvironment);
+                UpdateLastKnown(registeredEnvironment);
+                _hasCompletedRegistration = true;
             }
             catch
             {
@@ -207,7 +234,7 @@ public sealed class SimulationMasterClient : ITimeMasterClient
     private async Task WriteMessageAsync(SimulationMessage message, CancellationToken cancellationToken)
     {
         var writer = _writer;
-        if (!IsConnected || writer is null)
+        if (writer is null)
             throw new IOException("The Time Master connection is not available.");
 
         await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -241,7 +268,7 @@ public sealed class SimulationMasterClient : ITimeMasterClient
         }
         if (message.TimeStep > TimeSpan.Zero)
             _lastKnownTimeStep = message.TimeStep;
-        if (message.Type is SimulationMessageTypes.Environment or SimulationMessageTypes.TimeStep)
+        if (message.Type is SimulationMessageTypes.Environment or SimulationMessageTypes.TimeStep or SimulationMessageTypes.TimeReconciliation or SimulationMessageTypes.TimeStepReconciliation)
         {
             Volatile.Write(ref _lastEnvironment, new SimulationEnvironment(
                 _lastKnownVirtualTime,

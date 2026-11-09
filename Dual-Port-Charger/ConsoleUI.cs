@@ -1,5 +1,6 @@
 using Spectre.Console;
 using Spectre.Console.Rendering;
+using TeamConsoleShared;
 using TeamConsoleShared.Components;
 using TeamConsoleShared.Layout;
 
@@ -21,6 +22,10 @@ public class ConsoleUI
         var activePowerKw = (double)(_device.ActivePower / 1000m);
         var maxPowerKw = (double)(_device.Power / 1000m);
         var totalEnergyKwh = (double)(_device.Energy / 1000m);
+        var masterStatus = _simulator.MasterSyncStatus;
+        var masterStatusColor = masterStatus.Contains("CONNECTED", StringComparison.OrdinalIgnoreCase)
+            ? "bold chartreuse3"
+            : "dim grey";
 
         var dashboard = new SimulationDashboard()
             .WithHeader(h =>
@@ -30,11 +35,13 @@ public class ConsoleUI
                 h.ModbusPort = 1502;
                 h.ModbusUnitId = 1;
                 h.SimulatedTime = _simulator.SimulatedTime;
-                h.SpeedDescription = $"1 Sim-Min = {_simulator.DelayMs} ms";
+                h.SpeedDescription = $"1 Tick = {SimulationTimeFormatter.FormatTickDuration(_simulator.TickDuration)}";
                 h.ModeBadgeMarkup = StatusBadge.Mode(_simulator.AutoMode);
                 h.StatusBadgeMarkup = _device.Fault
                     ? StatusBadge.Fault("STÖRUNG")
-                    : StatusBadge.Running("FUNKTIONIERT");
+                    : _simulator.IsPaused
+                        ? StatusBadge.Paused("PAUSIERT")
+                        : StatusBadge.Running("FUNKTIONIERT");
                 h.AccentColor = Color.Teal;
             });
 
@@ -49,6 +56,7 @@ public class ConsoleUI
             MetricItem.Number("Netzanschluss Max-Limit", maxPowerKw, "kW", "bold cyan", icon: "🔌"),
             MetricItem.Number("Aktuelle Stationslast", activePowerKw, "kW", activePowerKw > maxPowerKw * 0.9 ? "bold red" : "bold green3", icon: "⚡"),
             MetricItem.Number("Geladene Gesamtenergie", totalEnergyKwh, "kWh", "bold white", icon: "📊"),
+            MetricItem.Text("Master-Sync", masterStatus, masterStatusColor, "⏱️"),
             MetricItem.Text("RabbitMQ Telemetrie", _simulator.RabbitMqConnected ? $"Verbunden ({_simulator.RabbitMqPublishedCount} gesendet)" : "Broker Offline (Fallback aktiv)", _simulator.RabbitMqConnected ? "bold chartreuse3" : "dim grey", "🐇"),
             MetricItem.MarkupValue("Auslastung", GaugeBar.Power(activePowerKw, maxPowerKw, "kW", 26))
         }, columns: 1));

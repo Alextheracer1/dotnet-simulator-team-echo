@@ -30,7 +30,7 @@ namespace Dual_Port_Charger
             };
             Console.CancelKeyPress += cancelHandler;
 
-            await using var simulationMaster = new TeamShared.SimulationMasterClient(masterHost, masterPort, "charger-1");
+            await using var simulationMaster = new TeamShared.SimulationMasterClient(masterHost, masterPort, "charger-1", "charger");
             var device = new Device();
             var simulator = new SimulatorEngine(device, timeStep, logFilePath, simulationMaster);
             var ui = new ConsoleUI(device, simulator);

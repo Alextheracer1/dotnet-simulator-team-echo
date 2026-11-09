@@ -125,16 +125,21 @@ public sealed class ConsoleDashboard
         bool paused,
         StateOfChargeSummary? rollingSummary,
         string? notice = null,
-        string? masterStatus = null)
+        string? masterStatus = null,
+        bool rabbitMqConnected = false,
+        long rabbitMqPublishedCount = 0,
+        TimeSpan? simulationTimeStep = null)
     {
         var inflowKW = Math.Max(0, targetPowerKW);
         var outflowKW = Math.Max(0, totalDeviceDemandKW);
         var totalFlowKW = inflowKW - outflowKW;
         var masterText = string.IsNullOrWhiteSpace(masterStatus) ? "Offline" : masterStatus;
+        var tickDuration = simulationTimeStep ?? TimeSpan.FromMinutes(30);
+        var tempoDescription = $"1 Tick = {SimulationTimeFormatter.FormatTickDuration(tickDuration)}";
 
         if (Console.IsOutputRedirected || Console.IsErrorRedirected)
         {
-            var fallback = $"{simulatedTime:yyyy-MM-dd HH:mm:ss} {mode}{(paused ? " (Paused)" : string.Empty)} | SOC {battery.StateOfChargePercent:F1}% | Battery {battery.CurrentPowerKW:+0.00;-0.00;0.00} kW | Demand {totalDeviceDemandKW:F2} kW";
+            var fallback = $"{simulatedTime:yyyy-MM-dd HH:mm:ss} {mode}{(paused ? " (Paused)" : string.Empty)} | Tempo: {tempoDescription} | SOC {battery.StateOfChargePercent:F1}% | Battery {battery.CurrentPowerKW:+0.00;-0.00;0.00} kW | Demand {totalDeviceDemandKW:F2} kW";
             Console.WriteLine(fallback);
             return;
         }
@@ -147,6 +152,7 @@ public sealed class ConsoleDashboard
                 h.ModbusPort = _modbusPort;
                 h.ModbusUnitId = _modbusUnitId;
                 h.SimulatedTime = simulatedTime;
+                h.SpeedDescription = tempoDescription;
                 h.ModeBadgeMarkup = StatusBadge.Mode(mode == ControlMode.Auto);
                 h.StatusBadgeMarkup = battery.State == BatteryState.Fault
                     ? StatusBadge.Fault("STÖRUNG")
@@ -181,9 +187,13 @@ public sealed class ConsoleDashboard
         var masterColor = masterText.Contains("ONLINE", StringComparison.OrdinalIgnoreCase) || masterText.Contains("Connected", StringComparison.OrdinalIgnoreCase)
             ? "bold chartreuse3"
             : "dim grey";
+        var rabbitMqText = rabbitMqConnected
+            ? $"Verbunden ({rabbitMqPublishedCount} gesendet)"
+            : "Broker Offline (Fallback aktiv)";
         var gridMetrics = new List<MetricItem>
         {
             MetricItem.Text("Master-Sync", masterText, masterColor, "⏱️"),
+            MetricItem.Text("RabbitMQ Telemetrie", rabbitMqText, rabbitMqConnected ? "bold chartreuse3" : "dim grey", "🐇"),
             MetricItem.Number("Netzbezug (Inflow)", inflowKW, "kW", "bold cyan", icon: "🔌"),
             MetricItem.Number("Verbraucher (Outflow)", outflowKW, "kW", "bold orange1", icon: "🏢"),
             MetricItem.Number("Gesamtfluss (Netto)", totalFlowKW, "kW", totalFlowKW >= 0 ? "bold green3" : "bold red", "+0.00;-0.00;0.00", icon: "⚖️"),

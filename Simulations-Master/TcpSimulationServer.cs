@@ -12,6 +12,7 @@ public sealed class TcpSimulationServer : IAsyncDisposable
 {
     private static readonly TimeSpan StepInterval = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan AcknowledgementTimeout = TimeSpan.FromSeconds(5);
+    private static readonly int ReconciliationCollectionTicks = 5;
 
     private readonly int _port;
     private readonly SimulationEngine _engine;
@@ -19,6 +20,11 @@ public sealed class TcpSimulationServer : IAsyncDisposable
     private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
     private TcpListener? _listener;
     private long _sequence;
+    private readonly ConcurrentDictionary<string, string> _previouslyConnectedStations = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, DateTime> _reconnectingStationTimes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, TimeSpan> _reconnectingStationTimeSteps = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _reconciliationLock = new();
+    private int _reconciliationTicksRemaining;
 
     public TcpSimulationServer(int port, SimulationEngine engine)
     {
@@ -156,10 +162,33 @@ public sealed class TcpSimulationServer : IAsyncDisposable
 
                     case SimulationMessageTypes.Register:
                         session.StationId = string.IsNullOrWhiteSpace(message.StationId) ? session.Id.ToString("N") : message.StationId;
-                        session.IsRegistered = true;
-                        if (!_engine.IsRunning && message.VirtualTime != default)
-                            _engine.ReconcileFromStation(message.VirtualTime);
-                        await WriteMessageAsync(session, CreateEnvironmentMessage(), cancellationToken).ConfigureAwait(false);
+                        session.StationType = message.StationType ?? string.Empty;
+                        var isReturningStation = message.HasPreviouslyConnected;
+                        if (!isReturningStation && _previouslyConnectedStations.TryGetValue(session.StationId, out var previousType))
+                            isReturningStation = IsReconciledStationType(previousType);
+                        isReturningStation &= IsReconciledStationType(session.StationType);
+                        lock (_reconciliationLock)
+                        {
+                            session.IsReconciliationPending = isReturningStation && (message.VirtualTime != default || message.TimeStep > TimeSpan.Zero);
+                            if (session.IsReconciliationPending)
+                            {
+                                if (message.VirtualTime != default)
+                                    _reconnectingStationTimes[session.StationId] = message.VirtualTime;
+                                if (message.TimeStep > TimeSpan.Zero)
+                                    _reconnectingStationTimeSteps[session.StationId] = message.TimeStep;
+                                if (_reconciliationTicksRemaining == 0)
+                                    _reconciliationTicksRemaining = ReconciliationCollectionTicks;
+                            }
+                            session.IsRegistered = !session.IsReconciliationPending;
+                        }
+                        if (session.IsReconciliationPending)
+                        {
+                            await session.RegistrationEnvironment.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await WriteMessageAsync(session, CreateEnvironmentMessage(), cancellationToken).ConfigureAwait(false);
+                        }
                         break;
 
                     case SimulationMessageTypes.State:
@@ -185,6 +214,8 @@ public sealed class TcpSimulationServer : IAsyncDisposable
         }
         finally
         {
+            if (!string.IsNullOrWhiteSpace(session.StationId))
+                _previouslyConnectedStations[session.StationId] = session.StationType ?? string.Empty;
             _clients.TryRemove(session.Id, out _);
             session.Client.Dispose();
         }
@@ -202,6 +233,9 @@ public sealed class TcpSimulationServer : IAsyncDisposable
             if (!_engine.IsRunning)
             {
                 await BroadcastAsync(environment, registered, cancellationToken).ConfigureAwait(false);
+                var pausedBatch = CompleteReconciliationTick();
+                if (pausedBatch is not null)
+                    await ReconcileReturningStationsAsync(pausedBatch, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
@@ -255,8 +289,139 @@ public sealed class TcpSimulationServer : IAsyncDisposable
 
             if (allAcknowledged)
                 _engine.CommitTimeStep(previousTime, timeStep);
+
+            var runningBatch = CompleteReconciliationTick();
+            if (runningBatch is not null)
+                await ReconcileReturningStationsAsync(runningBatch, cancellationToken).ConfigureAwait(false);
         }
     }
+
+    private ReconciliationBatch? CompleteReconciliationTick()
+    {
+        lock (_reconciliationLock)
+        {
+            if (_reconciliationTicksRemaining == 0 || --_reconciliationTicksRemaining > 0)
+                return null;
+
+            var candidates = _clients.Values
+                .Where(session => session.IsReconciliationPending && session.StationId is not null &&
+                    (_reconnectingStationTimes.ContainsKey(session.StationId) || _reconnectingStationTimeSteps.ContainsKey(session.StationId)))
+                .Select(session => new ReconciliationCandidate(
+                    session,
+                    _reconnectingStationTimes.TryGetValue(session.StationId!, out var vt) ? vt : default,
+                    _reconnectingStationTimeSteps.TryGetValue(session.StationId!, out var ts) ? ts : (TimeSpan?)null))
+                .ToArray();
+            _reconnectingStationTimes.Clear();
+            _reconnectingStationTimeSteps.Clear();
+            return new ReconciliationBatch(candidates);
+        }
+    }
+
+    private async Task ReconcileReturningStationsAsync(ReconciliationBatch batch, CancellationToken cancellationToken)
+    {
+        var stationTimes = batch.Candidates
+            .Where(candidate => candidate.VirtualTime != default)
+            .Select(candidate => candidate.VirtualTime)
+            .OrderBy(time => time)
+            .ToArray();
+        var reconciledTime = stationTimes.Length == 0
+            ? _engine.CurrentVirtualTime
+            : CalculateMedian(stationTimes);
+
+        var stationSteps = batch.Candidates
+            .Where(candidate => candidate.TimeStep.HasValue && candidate.TimeStep.Value > TimeSpan.Zero)
+            .Select(candidate => candidate.TimeStep!.Value)
+            .OrderBy(step => step)
+            .ToArray();
+        var hasReconciledTimeStep = stationSteps.Length > 0;
+        var reconciledStep = hasReconciledTimeStep
+            ? CalculateMedianTimeStep(stationSteps)
+            : _engine.TimeStep;
+
+        _engine.SetVirtualTime(reconciledTime);
+        if (hasReconciledTimeStep)
+        {
+            _engine.ChangeTimeStep(reconciledStep);
+        }
+
+        var message = new SimulationMessage
+        {
+            Type = SimulationMessageTypes.TimeReconciliation,
+            Sequence = Interlocked.Read(ref _sequence),
+            VirtualTime = reconciledTime,
+            TimeStep = _engine.TimeStep,
+            IsRunning = _engine.IsRunning,
+            Status = "Reconnect median"
+        };
+
+        var stepMessage = new SimulationMessage
+        {
+            Type = SimulationMessageTypes.TimeStepReconciliation,
+            Sequence = Interlocked.Read(ref _sequence),
+            VirtualTime = reconciledTime,
+            TimeStep = _engine.TimeStep,
+            IsRunning = _engine.IsRunning,
+            Status = "Reconnect median time step"
+        };
+
+        var establishedBatteryAndChargerSessions = _clients.Values
+            .Where(session => session.IsRegistered && IsReconciledStationType(session.StationType))
+            .ToArray();
+        await BroadcastAsync(message, establishedBatteryAndChargerSessions, cancellationToken).ConfigureAwait(false);
+        if (hasReconciledTimeStep)
+        {
+            await BroadcastAsync(stepMessage, establishedBatteryAndChargerSessions, cancellationToken).ConfigureAwait(false);
+        }
+
+        foreach (var candidate in batch.Candidates)
+        {
+            var session = candidate.Session;
+            session.IsReconciliationPending = false;
+            session.IsRegistered = true;
+            try
+            {
+                await WriteMessageAsync(session, message, cancellationToken).ConfigureAwait(false);
+                if (hasReconciledTimeStep)
+                {
+                    await WriteMessageAsync(session, stepMessage, cancellationToken).ConfigureAwait(false);
+                }
+                session.RegistrationEnvironment.TrySetResult(true);
+            }
+            catch (Exception exception) when (exception is IOException or ObjectDisposedException or SocketException)
+            {
+                session.Client.Dispose();
+            }
+        }
+    }
+
+    private static bool IsReconciledStationType(string? stationType) =>
+        string.Equals(stationType, "battery", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(stationType, "charger", StringComparison.OrdinalIgnoreCase);
+
+    private static DateTime CalculateMedian(DateTime[] sortedTimes)
+    {
+        var middle = sortedTimes.Length / 2;
+        if (sortedTimes.Length % 2 == 1)
+            return sortedTimes[middle];
+
+        var firstTicks = sortedTimes[middle - 1].Ticks;
+        var secondTicks = sortedTimes[middle].Ticks;
+        return new DateTime(firstTicks + (secondTicks - firstTicks) / 2, sortedTimes[middle].Kind);
+    }
+
+    private static TimeSpan CalculateMedianTimeStep(TimeSpan[] sortedSteps)
+    {
+        var middle = sortedSteps.Length / 2;
+        if (sortedSteps.Length % 2 == 1)
+            return sortedSteps[middle];
+
+        var firstTicks = sortedSteps[middle - 1].Ticks;
+        var secondTicks = sortedSteps[middle].Ticks;
+        return TimeSpan.FromTicks(firstTicks + (secondTicks - firstTicks) / 2);
+    }
+
+    private sealed record ReconciliationCandidate(ClientSession Session, DateTime VirtualTime, TimeSpan? TimeStep);
+    private sealed record ReconciliationBatch(ReconciliationCandidate[] Candidates);
 
     private async Task BroadcastAsync(SimulationMessage message, IEnumerable<ClientSession> sessions, CancellationToken cancellationToken)
     {
@@ -315,7 +480,10 @@ public sealed class TcpSimulationServer : IAsyncDisposable
         public SemaphoreSlim WriteLock { get; } = new(1, 1);
         public StreamWriter? Writer { get; set; }
         public string? StationId { get; set; }
+        public string? StationType { get; set; }
         public bool IsRegistered { get; set; }
+        public bool IsReconciliationPending { get; set; }
+        public TaskCompletionSource<bool> RegistrationEnvironment { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Task? HandlerTask { get; set; }
         public PendingAck? PendingAcknowledgement { get; set; }
     }
