@@ -89,3 +89,16 @@ Artefacts: WindTurbine_Simulator\Configuration\SimulationOptions.cs, WindTurbine
 - **KI:** Google Gemini 3.8 Flash (High) => Parserfehler identifiziert, Windows-CRLF/ASCII-Kodierung und Argumentlisten bereinigt.
 - **Artefact:** `scripts/start-all.bat`, `scripts/start-all.ps1`, `start-all.bat`, `start-all.ps1`
 - **Test:** PowerShell-Syntax-Validierung via AST Parser (`PS1 SYNTAX PERFECT`) und CMD-Batchlauf erfolgreich geprüft.
+
+### Modbus-RabbitMQ Gateway – Behebung astronomischer Float-Werte (Register-Offset Korrektur)
+- **Done:** Kritischen Adressierungs-Versatz im Modbus-RabbitMQ Gateway behoben. Die EasyModbus Client-Bibliothek adressiert Holding Register mit 0-basiertem Protokoll-Offset (Adresse `0` entspricht Holding Register `1`). Durch die Übergabe von `1` bei `ReadHoldingRegisters(1, count)` wurden alle Register um 1 verschoben ausgelesen. Dies führte dazu, dass 32-Bit IEEE 754 Floats (z. B. Wirkleistung und Energie) aus zwei halben Worten zweier benachbarter Register zusammengesetzt wurden und astronomische Fantasiewerte wie `-2.7e+29` oder `5.01e+33` ergaben. Die Adressierung in `ModbusDeviceBridge` wurde auf `0` korrigiert und das Schreiben von Sollwerten und Fehler-Resets in `ModbusTelemetryMapper` ebenfalls auf 0-basierte Adressen angepasst. Zudem wurde `ActivePowerKW` in `BatteryModbusService` mit `1000d` multipliziert, um dem LB02-Standard (Float32 in Watt) zu entsprechen.
+- **KI:** Google Gemini 3.8 Flash (High) => Analyse der fehlerhaften Telemetrieanzeige aus dem Screenshot, Identifikation des EasyModbus 0-basierten Protokolloffsets in `ModbusDeviceBridge.cs` und Anpassung des Mappers.
+- **Artefact:** `ModbusRabbitMqGateway/ModbusDeviceBridge.cs`, `TeamRabbitMQShared/Helpers/ModbusTelemetryMapper.cs`, `Battery/Simulation/BatteryModbusService.cs`
+- **Test:** Alle 9/9 Tests in `TeamRabbitMQShared.Tests` (inkl. `ModbusTelemetryMapper_FromRegisters`) erfolgreich ausgeführt.
+
+### PV- & WindTurbine-Simulator – Deaktivierung der CSV-Dateierstellung
+- **Done:** Die automatische Generierung und Ablage von CSV-Exportdateien in `PV_Simulator` und `WindTurbine_Simulator` deaktiviert. Im `PV_Simulator` wurde der `SimulationRunner` dahingehend angepasst, dass der `CsvSimulationLogger` optional (`null`) übergeben werden kann und Schreibaufrufe übersprungen werden. Im `WindTurbine_Simulator` wurde die Instanziierung des `CsvSimulationLogger` sowie der Schreibzyklus aus der Schleife entfernt und `ConsoleUi.PrintStart` auf `[grey62]CSV-Protokoll:[/] [dim grey]Deaktiviert[/]` aktualisiert.
+- **KI:** Google Gemini 3.8 Flash (High) => Identifikation der Initialisierungslogik in beiden Simulatoren, Umstellung auf Nullable-Logger-Pattern und Bereinigung der Konsolenmeldungen.
+- **Artefact:** `PV_Simulator/PV_Simulator/Simulation/SimulationRunner.cs`, `PV_Simulator/PV_Simulator/Program.cs`, `WindTurbine_Simulator/ConsoleApp/ConsoleUi.cs`, `WindTurbine_Simulator/Program.cs`
+- **Test:** Kompilierung von `PV_Simulator` und `WindTurbine_Simulator` via `dotnet build -m:1 --no-dependencies` (0 Warnungen, 0 Fehler).
+- **Comment:** Die CSV-Dateien wurden bei jedem Start im Ordner `exports/` neu angelegt und verbrauchten unnötig Speicherplatz während der Live-Entwicklung und Telemetrieübertragung. Die `CsvSimulationLogger`-Klassen bleiben für optionale spätere Nutzung erhalten.
