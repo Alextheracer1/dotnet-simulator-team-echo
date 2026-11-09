@@ -50,9 +50,16 @@ public sealed class ConsoleUi
         };
     }
 
-    public void PrintStart(SimulationOptions options, string csvPath)
+    public void PrintStart(SimulationOptions options, string? csvPath = null)
     {
-        AnsiConsole.MarkupLine($"[grey62]CSV-Protokoll:[/] [cyan]{Markup.Escape(csvPath)}[/]");
+        if (!string.IsNullOrWhiteSpace(csvPath))
+        {
+            AnsiConsole.MarkupLine($"[grey62]CSV-Protokoll:[/] [cyan]{Markup.Escape(csvPath)}[/]");
+        }
+        else
+        {
+            AnsiConsole.MarkupLine("[grey62]CSV-Protokoll:[/] [dim grey]Deaktiviert[/]");
+        }
         AnsiConsole.MarkupLine(options.Duration.HasValue
             ? $"[green]Simulation startet[/] ([grey]{options.Duration.Value.TotalHours:0.##} h, Schritt {options.StepInterval.TotalSeconds:0.##} s, Zeitraffer x{options.SpeedMultiplier:0.##}[/])."
             : $"[green]Simulation startet[/] ([grey]unbegrenzt, Schritt {options.StepInterval.TotalSeconds:0.##} s, Zeitraffer x{options.SpeedMultiplier:0.##}[/]).");

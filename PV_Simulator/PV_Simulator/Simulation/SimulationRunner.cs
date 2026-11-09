@@ -22,7 +22,7 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
         PvArray array,
         Inverter inverter,
         SimulationSettings settings,
-        CsvSimulationLogger csvLogger,
+        CsvSimulationLogger? csvLogger,
         ITimeMasterClient masterClient,
         WeatherCallbackReceiver? weatherReceiver = null,
         PvModbusService? modbusService = null,
@@ -128,7 +128,10 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
                 timeStep,
                 rabbitPublisher?.IsConnected ?? false,
                 rabbitPublisher?.PublishedCount ?? 0);
-            await csvLogger.WriteAsync(snapshot, location.Name, cancellationToken);
+            if (csvLogger != null)
+            {
+                await csvLogger.WriteAsync(snapshot, location.Name, cancellationToken);
+            }
         }
 
         while (!settings.Duration.HasValue || elapsed < settings.Duration.Value)

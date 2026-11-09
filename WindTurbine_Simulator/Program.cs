@@ -35,13 +35,6 @@ var runner = new WindTurbineSimulationRunner(model, options, modbusServer, rabbi
 var statusRenderer = new ConsoleStatusRenderer();
 using var cancellationTokenSource = new CancellationTokenSource();
 
-var csvPath = Path.Combine(
-    Environment.CurrentDirectory,
-    "exports",
-    $"windturbine-simulation-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.csv");
-
-await using var csvLogger = new CsvSimulationLogger(csvPath);
-
 Console.CancelKeyPress += (_, eventArgs) =>
 {
     eventArgs.Cancel = true;
@@ -54,7 +47,7 @@ await using var masterClient = new WindSimulationMasterClient(
     GetSimulationMasterPort(),
     $"{Environment.MachineName}-WindTurbine");
 
-ui.PrintStart(options, csvLogger.FilePath);
+ui.PrintStart(options);
 
 var weatherUrl = Environment.GetEnvironmentVariable("WEATHER_SIMULATOR_URL") ?? "http://localhost:5005";
 var latitude = double.TryParse(Environment.GetEnvironmentVariable("WIND_LATITUDE"), CultureInfo.InvariantCulture, out var parsedLat) ? parsedLat : options.Latitude;
@@ -74,7 +67,6 @@ try
     await foreach (var snapshot in runner.RunAsync(masterClient, weatherReceiver, cancellationTokenSource.Token))
     {
         statusRenderer.Render(snapshot, options, snapshot.SpeedMultiplier, totalSteps, runner.RabbitMqConnected, runner.RabbitMqPublishedCount);
-        await csvLogger.WriteAsync(snapshot, cancellationTokenSource.Token);
     }
 
     ui.PrintCompleted();
