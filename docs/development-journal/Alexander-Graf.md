@@ -115,3 +115,16 @@ Optionale Tags bei Relevanz:
 - **Artefact:** `TeamConsoleShared/SimulationTheme.cs`, `TeamConsoleShared/Layout/SimulationDashboard.cs`, `TeamConsoleShared/Layout/SimulationHeader.cs`, `WeatherSimulator/ConsoleUi/WeatherConsoleDashboard.cs`, `WeatherSimulator/Program.cs`.
 - **Test:** Kompilierung und Verifikation des Dashboards; der Render-Frame bleibt stabil bei 17 Zeilen ohne Zeilenüberlauf, ohne vertikales Springen und ohne Sekundärflackern.
 - **Comment:** Ein ständiges `Console.Clear()` auf jedem Frame führt zu sichtbarem Flackern, da das Terminal für Millisekunden schwarz wird. Durch die Entkoppelung (Clear nur bei struktureller Höhenänderung, sonst sauberes In-Place-Overwrite) vereint die Lösung absolute Artefaktfreiheit mit flüssiger, ruhiger Terminaldarstellung.
+
+### KI-Agenten Onboarding- & Skill-Dokumentation (docs/ai-agent-onboarding.md)
+- **Done:** Umfassenden Onboarding- und Schnellstart-Leitfaden für neue autonome KI-Agenten und Entwickler-LLMs konzipiert und implementiert (`docs/ai-agent-onboarding.md`):
+  - Kompakte Gesamtsystem- und Architekturübersicht des Digital-Twin-Systems Energy Twin 2026 (PV, Windkraft, Großbatterie, Dual-Port-Charger, Simulations-Master, WeatherSimulator, Gateway, Viewer).
+  - Spezifikation der vier Kommunikationsschichten (TCP-Masterzeit & Zeitschritt-Barriere via `ITimeMasterClient`, HTTP-Wetterpush & dynamische Callbacks, Modbus-TCP-Registerlayout nach LB02, RabbitMQ-Pub/Sub-Messaging über `sim.exchange`).
+  - Vollständige Modul-, Port- und Routing-Key-Matrix aller beteiligten Applikationen.
+  - Detaillierte Dokumentation und Handlungsanweisungen aller 6 projektspezifischen Agent-Skills (`build-and-test`, `development-journal`, `run-simulators`, `modbus-rabbitmq-gateway`, `rabbitmq-messaging`, `rabbitmq-viewer`).
+  - Verbindliche Ausführungsregeln für macOS/Sandbox (`DOTNET_CLI_HOME=/tmp/dotnet_home`, `-m:1`) und strukturierte Checkliste für anstehende Entwicklungsaufgaben.
+  - Verlinkung und Einbindung in die zentrale Dokumentationsübersicht `docs/README.md`.
+- **KI:** Google Gemini 3.8 Flash (High) via Antigravity Assistant. Strukturierte Synthese der Architektur- und Skill-Vorgaben aus `PROJECT_CONTEXT.md`, `AGENTS.md` und `.agents/skills/*` in ein einheitliches, handlungsorientiertes Handbuch.
+- **Artefact:** `docs/ai-agent-onboarding.md`, `docs/README.md`.
+- **Test:** Kompilierung aller Solution-Projekte via `DOTNET_CLI_HOME=/tmp/dotnet_home /usr/local/share/dotnet/dotnet build dotNET_Programmierung_2026_Aufgabe_02.slnx -m:1` erfolgreich verifiziert (0 Fehler).
+- **Comment:** Neue Agenten oder Subagents erhalten durch das Dokument sofort den nötigen Kontext, um ohne zeitaufwendiges Suchen oder Fehlannahmen zielgerichtet Builds, Simulatoren, Gateways und Journaleinträge nach Projektstandard zu bedienen.

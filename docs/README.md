@@ -25,6 +25,7 @@ Hier finden Sie praxisorientierte Anleitungen zur Einrichtung und Bedienung des 
 
 ## 🏛️ Architektur & Entwickler-Richtlinien
 
+* **[KI-Agenten Onboarding & Skill-Handbuch](file:///Users/alex/Github/dotnet-simulator-team-echo/docs/ai-agent-onboarding.md):** Kompakte Zusammenfassung von Architektur, Kommunikationsschichten und allen verfügbaren Agent-Skills (`.agents/skills/`) für neue KIs.
 * **[Projekt-Kontext & Gesamtdokumentation](file:///Users/alex/Github/dotnet-simulator-team-echo/PROJECT_CONTEXT.md):** Umfassende Spezifikation der Netzwerkprotokolle (TCP-Master, Modbus LB02-Register, HTTP Weather-Push, RabbitMQ Pub/Sub).
 * **[Agent Guidelines & Standards (AGENTS.md)](file:///Users/alex/Github/dotnet-simulator-team-echo/AGENTS.md):** Richtlinien für Build, SDK-Pfade und Automatisierungs-Skills.
 
