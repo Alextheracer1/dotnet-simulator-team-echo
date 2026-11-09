@@ -128,3 +128,16 @@ Optionale Tags bei Relevanz:
 - **Artefact:** `docs/ai-agent-onboarding.md`, `docs/README.md`.
 - **Test:** Kompilierung aller Solution-Projekte via `DOTNET_CLI_HOME=/tmp/dotnet_home /usr/local/share/dotnet/dotnet build dotNET_Programmierung_2026_Aufgabe_02.slnx -m:1` erfolgreich verifiziert (0 Fehler).
 - **Comment:** Neue Agenten oder Subagents erhalten durch das Dokument sofort den nötigen Kontext, um ohne zeitaufwendiges Suchen oder Fehlannahmen zielgerichtet Builds, Simulatoren, Gateways und Journaleinträge nach Projektstandard zu bedienen.
+
+### Konsolidierung der Agenten-Richtlinien & Onboarding-Dokumentation (AGENTS.md)
+- **Done:** Zusammenführung der bisherigen `AGENTS.md` und des Onboarding-Handbuchs `docs/ai-agent-onboarding.md` zu einer zentralen, allumfassenden Referenzdatei `AGENTS.md` im Root-Verzeichnis des Projekts:
+  - Vollständige Architektur- und Protokollübersicht (TCP-Master-Barriere, HTTP-Wetter-Push, Modbus-TCP nach LB02, RabbitMQ pub/sub).
+  - Umfassende Modul-, Port- und Routing-Key-Matrix aller 13 Projekte/Module.
+  - Exaktes LB02 Holding-Registerlayout (1–12) inklusive Datentypen, High/Low-Word-Aufteilung und gerätespezifischen Registern (13+).
+  - Detaillierte RabbitMQ-Messaging-Konventionen (Topic-Exchange `sim.exchange`, DTOs `DeviceTelemetryMessage` & `DeviceCommandMessage`, Resilienzregeln).
+  - Vollständiges Agent-Skill-Handbuch (`.agents/skills/`) mit Ausführungsbefehlen und Journal-Pflicht-Tags.
+  - Entfernung der redundanten Zwischendatei `docs/ai-agent-onboarding.md` und Aktualisierung der Dokumentationsübersicht `docs/README.md`.
+- **KI:** Google Gemini 3.8 Flash (High) via Antigravity Assistant. Redundanzfreie Synthese beider Leitfäden in eine konsistente Dokumentenstruktur im Root-Verzeichnis.
+- **Artefact:** `AGENTS.md`, `docs/README.md`, `docs/development-journal/Alexander-Graf.md`.
+- **Test:** Prüfung der Markdown-Links und Verifikation von Konsistenz und Formatierung der zusammengeführten Datei.
+- **Comment:** Durch die Konsolidierung im Root-Verzeichnis (`AGENTS.md`) finden sowohl Entwickler als auch autonome KI-Agenten alle relevanten Standards, Ports, Protokolle und Skills an einem einzigen, standardisierten Einstiegspunkt.
