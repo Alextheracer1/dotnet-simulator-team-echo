@@ -168,4 +168,17 @@ Optionale Tags bei Relevanz:
 - **Test:** Kompilierung via `dotnet build Dual-Port-Charger.Tests/Dual-Port-Charger.Tests.csproj -m:1` (0 Fehler) und erfolgreiche Testausführung aller 27/27 Tests mit `dotnet run --project Dual-Port-Charger.Tests/Dual-Port-Charger.Tests.csproj --no-build` (100% grün).
 - **Comment:** Durch die Testsuite ist die gesamte Business- und Simulationslogik der Schnellladestation (Fair-Share-Algorithmus, Ladekurven-Interpolation, Clamping und Fehlerbehandlung) lückenlos regressionsgesichert.
 
+### Überarbeitung & Aktualisierung der zentralen Dokumentation (README.md)
+- **Done:** Die zentrale `README.md` im Stammverzeichnis des Repositories vollständig auf den aktuellen Projekt- und Implementierungsstand aktualisiert:
+  - Aktualisierung der Architekturübersicht: Ergänzung des 4-Schichten-Modells (Master-TCP 1510 mit Zeitschritt-Barriere, HTTP-Wetterdienst 5005 mit Callback-Push ab 6000/6100, Modbus TCP Feldbusse 1502–1505 nach LB02, RabbitMQ Topic Pub/Sub über `sim.exchange`).
+  - Vollständige Erfassung aller 14 Solution-Projekte und Modulverantwortlichkeiten im Team (Charger, Battery, PV, WindTurbine, Simulations-Master, WeatherSimulator, Gateway, Viewer, Diagnose-Client, Shared-Bibliotheken und beiden Test-Suites).
+  - Umfassende Netzwerk-, Port- und Register-Matrix: LB02 Holding-Register 1–12 (Datentypen, Einheiten, High/Low-Word), gerätespezifische Register 13+ für alle 4 Feldgeräte sowie RabbitMQ-Routing-Keys.
+  - Dokumentation der automatisierten Multi-Terminal-Startup-Skripte (`start-all.sh`, `start-all.ps1`, `start-all.bat`) mit interaktiver TUI-Projektauswahl sowie der manuellen 4-Phasen-Inbetriebnahme.
+  - Übersicht der interaktiven Hotkeys für alle Konsolenmodule und Integration der beiden Test-Suites (`Dual-Port-Charger.Tests` mit 27 Tests, `TeamRabbitMQShared.Tests` mit 9 Tests).
+  - Bereinigung veralteter Pfadangaben und Verlinkung aller vertiefenden Tutorials und Spezifikationen in `docs/`.
+- **KI:** Google Gemini 3.8 Flash (High) via Antigravity Assistant. Strukturierte Konsolidierung aller Systemdokumente (`PROJECT_CONTEXT.md`, `AGENTS.md`, `docs/*`) in eine professionelle, leserfreundliche GitHub-Startseite.
+- **Artefact:** `README.md`, `docs/development-journal/Alexander-Graf.md`.
+- **Test:** Prüfung aller relativen Markdown-Links und Pfade, Verifikation des Solution-Builds (`dotnet build dotNET_Programmierung_2026_Aufgabe_02.slnx -m:1 --no-restore` mit 0 Fehlern) und Ausführung der Testrunner.
+- **Comment:** Die überarbeitete Root-`README.md` bietet nun sowohl Lehrenden als auch Entwicklern einen optimalen, sofort verständlichen Einstiegspunkt mit allen notwendigen Startbefehlen, Architekturdiagrammen und Spezifikationen.
+
 
