@@ -141,3 +141,17 @@ Optionale Tags bei Relevanz:
 - **Artefact:** `AGENTS.md`, `docs/README.md`, `docs/development-journal/Alexander-Graf.md`.
 - **Test:** Prüfung der Markdown-Links und Verifikation von Konsistenz und Formatierung der zusammengeführten Datei.
 - **Comment:** Durch die Konsolidierung im Root-Verzeichnis (`AGENTS.md`) finden sowohl Entwickler als auch autonome KI-Agenten alle relevanten Standards, Ports, Protokolle und Skills an einem einzigen, standardisierten Einstiegspunkt.
+
+### Interaktives Projekt-Auswahlmenü für Startup-Skripte (start-all)
+- **Done:** Startup-Skripte für macOS/Linux (`scripts/start-all.sh`, `start-all.sh`) und Windows (`scripts/start-all.ps1`, `scripts/start-all.bat`, `start-all.ps1`) um ein interaktives Terminal-Auswahlmenü (TUI) erweitert:
+  - Navigation und Steuerung: Auswahlzeiger bewegt sich mit den Pfeiltasten (↑/↓ sowie Vim-Keys k/j), Projekte werden mit der Leertaste an- oder abgewählt (`[X]` / `[ ]`).
+  - Schnellfunktionen: 'a' / 'A' schaltet alle Komponenten gleichzeitig an/ab, Zifferntasten (1–9) erlauben die direkte Umschaltung eines Moduls.
+  - Start & Abbruch: Drücken von `Enter` oder `S` startet in geordneter Reihenfolge ausschließlich die ausgewählten Projekte; `Q` bricht den Vorgang sauber ab.
+  - Vollständige Projektliste: Alle 9 lauffähigen Projekte der Solution sind aufgeführt (die 8 Kernsimulationsdienste sind standardmäßig vorausgewählt, der interaktive `ModbusDiagnoseClient` kann optional zugeschaltet werden).
+  - Flackerfreie Terminal-Darstellung: In-Place-Redraw via ANSI-Cursorsteuerung (vollständig abwärtskompatibel zu macOS Bash 3.2 ohne externe Abhängigkeiten) mit automatischer Cursor-Wiederherstellung bei Exit/Ctrl+C.
+  - CLI-Unterstützung: Flags `--all` / `-y` sowie nicht-interaktive Shells (Pipes/CI) starten direkt ohne Menüabfrage.
+- **KI:** Google Gemini 3.8 Flash (High) via Antigravity Assistant. Konzeptionierung des portablen TUI-State-Handlings unter Bash 3.2 (macOS) und PowerShell (Windows), PTY-Simulationstests für Tastenabfragen (Escape-Sequenzen für Pfeiltasten, Leertaste, Enter) und fehlerfreie Terminal-Synchronisation.
+- **Artefact:** `scripts/start-all.sh`, `scripts/start-all.ps1`, `scripts/start-all.bat`, `start-all.sh`, `start-all.ps1`, `docs/development-journal/Alexander-Graf.md`.
+- **Test:** PTY-basierte Integrationstests für Pfeiltasten-Navigation, Checkbox-Toggle per Leertaste, Direktwahl und Start-/Abbruch-Verhalten unter macOS; Syntaxvalidierung mit `bash -n` und Parameterüberprüfung mit `--help`.
+- **Comment:** Entwickler können nun für gezielte Tests (z. B. isoliertes Debugging von Master + Charger oder PV + WeatherSimulator) genau die gewünschten Subsysteme hochfahren, ohne manuell Befehle in mehreren Konsolentabs ausführen zu müssen.
+
