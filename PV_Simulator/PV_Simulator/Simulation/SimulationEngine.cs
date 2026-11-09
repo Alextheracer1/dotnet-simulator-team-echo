@@ -16,12 +16,14 @@ public sealed class SimulationEngine
     private readonly SolarPositionCalculator _solarPositionCalculator;
     private readonly PvPowerCalculator _powerCalculator;
     private readonly Random _random;
+    private readonly object _stateLock = new();
     private DateOnly? _energyDate;
     private double _dailyEnergyKilowattHours;
     private bool _snowCoverActive;
     private TimeSpan _faultRemaining;
     private InverterStatus _inverterStatus = InverterStatus.Off;
     private bool _manualFaultActive;
+    private double? _powerLimitKw;
     private int _stepNumber;
 
     public SimulationEngine(
@@ -42,20 +44,55 @@ public sealed class SimulationEngine
         _powerCalculator = new PvPowerCalculator();
     }
 
-    public bool ToggleManualFault()
+    public double? PowerLimitKw
     {
-        _manualFaultActive = !_manualFaultActive;
-        if (_manualFaultActive)
+        get { lock (_stateLock) return _powerLimitKw; }
+    }
+
+    public void SetPowerLimitKw(double? limitKw)
+    {
+        lock (_stateLock)
         {
-            _inverterStatus = InverterStatus.Faulted;
+            _powerLimitKw = limitKw;
         }
-        else
+    }
+
+    public void ResetFault()
+    {
+        lock (_stateLock)
         {
+            _manualFaultActive = false;
             _faultRemaining = TimeSpan.Zero;
             _inverterStatus = InverterStatus.Off;
         }
+    }
 
-        return _manualFaultActive;
+    public void TriggerFault()
+    {
+        lock (_stateLock)
+        {
+            _manualFaultActive = true;
+            _inverterStatus = InverterStatus.Faulted;
+        }
+    }
+
+    public bool ToggleManualFault()
+    {
+        lock (_stateLock)
+        {
+            _manualFaultActive = !_manualFaultActive;
+            if (_manualFaultActive)
+            {
+                _inverterStatus = InverterStatus.Faulted;
+            }
+            else
+            {
+                _faultRemaining = TimeSpan.Zero;
+                _inverterStatus = InverterStatus.Off;
+            }
+
+            return _manualFaultActive;
+        }
     }
 
     public bool ToggleSnowCover()
@@ -118,27 +155,36 @@ public sealed class SimulationEngine
             solarPosition = _solarPositionCalculator.Calculate(_location, simulatedAt);
         }
 
-        var irradiance = _powerCalculator.CalculatePlaneOfArrayIrradiance(solarPosition, _array, weather);
-        UpdateInverterStatus(timeStep, irradiance);
-        var power = _powerCalculator.CalculatePowerKilowatts(
-            _array,
-            _inverter,
-            weather,
-            irradiance,
-            _snowCoverActive,
-            _inverterStatus);
-        _dailyEnergyKilowattHours += power * timeStep.TotalHours;
+        lock (_stateLock)
+        {
+            var irradiance = _powerCalculator.CalculatePlaneOfArrayIrradiance(solarPosition, _array, weather);
+            UpdateInverterStatus(timeStep, irradiance);
+            var power = _powerCalculator.CalculatePowerKilowatts(
+                _array,
+                _inverter,
+                weather,
+                irradiance,
+                _snowCoverActive,
+                _inverterStatus);
 
-        return new SimulationSnapshot(
-            _stepNumber,
-            simulatedAt,
-            weather,
-            irradiance,
-            power,
-            _dailyEnergyKilowattHours,
-            _snowCoverActive,
-            _inverterStatus,
-            _manualFaultActive);
+            if (_powerLimitKw.HasValue && _powerLimitKw.Value >= 0)
+            {
+                power = Math.Min(power, _powerLimitKw.Value);
+            }
+
+            _dailyEnergyKilowattHours += power * timeStep.TotalHours;
+
+            return new SimulationSnapshot(
+                _stepNumber,
+                simulatedAt,
+                weather,
+                irradiance,
+                power,
+                _dailyEnergyKilowattHours,
+                _snowCoverActive,
+                _inverterStatus,
+                _manualFaultActive);
+        }
     }
 
     private void UpdateInverterStatus(TimeSpan timeStep, double irradiance)

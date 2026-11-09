@@ -4,6 +4,9 @@ using System.Threading.Tasks;
 using PV_Simulator.ConsoleApp;
 using PV_Simulator.Domain;
 using PV_Simulator.Modbus;
+using TeamRabbitMQShared.Consumer;
+using TeamRabbitMQShared.Models;
+using TeamRabbitMQShared.Publisher;
 using TeamShared.Simulation;
 using TeamShared.Weather;
 
@@ -23,8 +26,27 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
         ITimeMasterClient masterClient,
         WeatherCallbackReceiver? weatherReceiver = null,
         PvModbusService? modbusService = null,
+        IRabbitMqPublisher? rabbitPublisher = null,
+        IRabbitMqConsumer? rabbitConsumer = null,
         CancellationToken cancellationToken = default)
     {
+        if (rabbitPublisher != null)
+        {
+            await rabbitPublisher.StartAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        if (rabbitConsumer != null)
+        {
+            await rabbitConsumer.StartAsync(cancellationToken).ConfigureAwait(false);
+            var deviceIdKey = array.DeviceId.Trim().ToLowerInvariant().Replace(' ', '_');
+            await rabbitConsumer.SubscribeCommandsAsync("sim.commands.pv.#", cmd => HandleRemoteCommandAsync(cmd, engine), cancellationToken).ConfigureAwait(false);
+            await rabbitConsumer.SubscribeCommandsAsync("sim.commands.*.pv-1", cmd => HandleRemoteCommandAsync(cmd, engine), cancellationToken).ConfigureAwait(false);
+            if (deviceIdKey != "pv-1")
+            {
+                await rabbitConsumer.SubscribeCommandsAsync($"sim.commands.*.{deviceIdKey}", cmd => HandleRemoteCommandAsync(cmd, engine), cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         await masterClient.ConnectWithRetryAsync(cancellationToken).ConfigureAwait(false);
         var initialEnvironment = await masterClient.RequestEnvironmentAsync(cancellationToken).ConfigureAwait(false)
             ?? throw new IOException("Der Simulation Master hat keine Startzeit geliefert.");
@@ -48,8 +70,50 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
             if (elapsed < TimeSpan.Zero)
                 elapsed = TimeSpan.Zero;
 
+            if (modbusService != null)
+            {
+                var modbusSetpoint = modbusService.ReadPowerLimitSetpoint();
+                if (modbusSetpoint < float.MaxValue && modbusSetpoint > 0)
+                {
+                    var modbusLimitKw = modbusSetpoint > 1000 ? modbusSetpoint / 1000.0 : modbusSetpoint;
+                    if (!engine.PowerLimitKw.HasValue || modbusLimitKw < engine.PowerLimitKw.Value)
+                    {
+                        engine.SetPowerLimitKw(modbusLimitKw);
+                    }
+                }
+            }
+
             var snapshot = engine.AdvanceTo(targetTime, timeStep, externalWeather);
             modbusService?.Update(snapshot);
+
+            if (rabbitPublisher != null)
+            {
+                var isFaulted = snapshot.ManualFaultActive || snapshot.InverterStatus == InverterStatus.Faulted;
+                var telemetry = new DeviceTelemetryMessage
+                {
+                    DeviceId = "pv-1",
+                    DeviceType = "pv",
+                    Timestamp = DateTime.UtcNow,
+                    VirtualTime = targetTime.ToUnixTimeSeconds(),
+                    OperatingState = (short)(isFaulted ? 3 : (snapshot.InverterStatus == InverterStatus.Running ? 2 : 0)),
+                    ErrorCode = (short)(isFaulted ? 1 : 0),
+                    ActivePowerWatts = snapshot.PowerKilowatts * 1000.0,
+                    CumulativeEnergyKwh = snapshot.DailyEnergyKilowattHours,
+                    IsOn = snapshot.InverterStatus != InverterStatus.Off,
+                    ModbusPort = modbusService?.Port ?? 1504,
+                    ModbusUnitId = modbusService?.UnitId ?? 1
+                };
+                telemetry.SetMetric("Irradiance", snapshot.IrradianceWattsPerSquareMeter);
+                telemetry.SetMetric("Temperature", snapshot.Weather.AmbientTemperatureCelsius);
+                telemetry.SetMetric("CloudCover", snapshot.Weather.CloudCoverFraction * 100.0);
+                if (engine.PowerLimitKw.HasValue)
+                {
+                    telemetry.SetMetric("PowerLimitKw", engine.PowerLimitKw.Value);
+                }
+
+                await rabbitPublisher.PublishTelemetryAsync(telemetry, cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+
             var speedMultiplier = timeStep.TotalSeconds;
             var totalSteps = settings.Duration.HasValue ? GetTotalSteps(settings.Duration.Value, timeStep) : 0;
             renderer.Render(
@@ -61,7 +125,9 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
                 speedMultiplier,
                 totalSteps,
                 GetSelectedWeatherControlName(),
-                timeStep);
+                timeStep,
+                rabbitPublisher?.IsConnected ?? false,
+                rabbitPublisher?.PublishedCount ?? 0);
             await csvLogger.WriteAsync(snapshot, location.Name, cancellationToken);
         }
 
@@ -266,6 +332,33 @@ public sealed class SimulationRunner(ConsoleStatusRenderer renderer)
         WeatherControlSelection.Temperature => "Temperatur",
         _ => "keine ( +/− regeln die Geschwindigkeit)"
     };
+
+    private static Task HandleRemoteCommandAsync(DeviceCommandMessage cmd, SimulationEngine engine)
+    {
+        if (cmd.CommandType.Equals("SetPowerLimit", StringComparison.OrdinalIgnoreCase) ||
+            cmd.CommandType.Equals("Setpoint", StringComparison.OrdinalIgnoreCase))
+        {
+            if (cmd.Value > 0)
+            {
+                var limitKw = cmd.Value > 1000 ? cmd.Value / 1000.0 : cmd.Value;
+                engine.SetPowerLimitKw(limitKw);
+            }
+            else
+            {
+                engine.SetPowerLimitKw(null);
+            }
+        }
+        else if (cmd.CommandType.Equals("ResetFault", StringComparison.OrdinalIgnoreCase))
+        {
+            engine.ResetFault();
+        }
+        else if (cmd.CommandType.Equals("TriggerFault", StringComparison.OrdinalIgnoreCase))
+        {
+            engine.TriggerFault();
+        }
+
+        return Task.CompletedTask;
+    }
 
     private enum WeatherControlSelection
     {

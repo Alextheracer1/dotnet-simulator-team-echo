@@ -29,7 +29,7 @@ Das Gesamtsystem bildet ein verteiltes Digital-Twin-System zur Energiesimulation
 - **Modbus TCP:** Alle Feldgeräte (`Dual-Port-Charger` auf Port 1502, `Battery` auf 1503, `PV_Simulator` auf 1504, `WindTurbine_Simulator` auf 1505) stellen ihre Messwerte/Betriebszustände über Modbus TCP gemäß LB02-Registerstandard (Holding Register 1–12) sowie gerätespezifischen Registern (13+) bereit.
 - **Simulation Master:** Der Master verteilt die gemeinsame virtuelle Zeit über TCP und zeilengetrennte JSON-Nachrichten. PV, Wind, WeatherSimulator und Battery registrieren jeweils eigene Clients auf Basis des Vertrags in `TeamShared`; registrierte Clients nehmen an der Zeitschritt-Barriere teil. Der Master berechnet oder verteilt selbst keine Wetterwerte.
 - **REST Minimal API (WeatherProvider) & Push:** `WeatherSimulator` stellt standortgenaue Wetterdaten über HTTP Minimal API (Port 5005) und pro Zeitschritt per HTTP POST Push an registrierte Feldgeräte (`PV_Simulator` Port 6000+, `WindTurbine_Simulator` Port 6100+) bereit. Beide Simulatoren verfügen über einen robusten Offline-Fallback auf interne Modelle.
-- **RabbitMQ (Weg A – Gateway-Architektur):** `ModbusRabbitMqGateway` pollt periodisch die Modbus-Server aller Feldgeräte (Charger 1502, Battery 1503, PV 1504, Wind 1505) und publiziert standardisierte Telemetriedaten (`DeviceTelemetryMessage`) auf den Topic-Exchange `sim.exchange` (`sim.telemetry.<deviceType>.<id>`). Der `RabbitMqViewer` abonniert `#` und visualisiert alle Simulatoren im einheitlichen Dashboard.
+- **RabbitMQ (Native Anbindung & Gateway):** Alle 4 Feldgeräte (`Dual-Port-Charger`, `Battery`, `PV_Simulator`, `WindTurbine_Simulator`) verfügen über eine native Publisher-/Consumer-Anbindung direkt an RabbitMQ (`sim.exchange`, Topic-Routing `sim.telemetry.<deviceType>.<id>` und `sim.commands.<deviceType>.<id>`). Parallel steht weiterhin das `ModbusRabbitMqGateway` zur Verfügung, um reine Modbus-Feldgeräte abzufragen. Der `RabbitMqViewer` abonniert `sim.telemetry.#` und visualisiert alle Simulatoren im einheitlichen Dashboard.
 - **Offline-Zeitverhalten:** Wenn der Master nach erfolgreicher Synchronisierung ausfällt, rechnen PV, Wind und WeatherSimulator mit dem zuletzt bekannten Masterstatus und Zeitschritt weiter. Nach Wiederverbindung springen sie auf die aktuelle Masterzeit; ausgefallene Schritte werden nicht nachträglich abgespielt.
 
 ### 1.3 Zentrale Einstiegspunkte
@@ -131,11 +131,12 @@ Das Gesamtsystem bildet ein verteiltes Digital-Twin-System zur Energiesimulation
   - `WindTurbine_Simulator/`: Dynamischer Callback-Empfänger ab Port 6100, konfigurierbare Koordinaten (Salzburg-Default: 47.77, 13.09), Windberechnung mit realer Windgeschwindigkeit plus Turbulenzrauschen mit lokalem Fallback.
 - **PV Modbus-TCP-Server (Port 1504):**
   - Implementiert via `PvModbusService` mit LB02-Holding-Registern 1–12 (OperatingState, ErrorCode, ActivePower in Watt, CumulativeEnergy in kWh, VirtualTime Unix-Timestamp, OnOffState) sowie Registern 13–18 für PV-Metriken (Irradiance, Temperature, CloudCover).
-- **RabbitMQ Telemetrie-Pipeline (Weg A – Gateway-Polling):**
-  - `ModbusRabbitMqGateway`: Konfiguriert für alle 4 Feldgeräte: Charger (`1502`), Battery (`1503`), PV (`1504`), Wind (`1505`).
+- **RabbitMQ Telemetrie-Pipeline (Native Anbindung & Gateway-Polling):**
+  - Alle 4 Feldgeräte (Charger `charger-1`, Battery `battery-1`, PV `pv-1`, Wind `wind-1`) publizieren native Telemetriedaten (`DeviceTelemetryMessage`) und verarbeiten Fernsteuerbefehle (`SetPowerLimit`, `ResetFault`, `TriggerFault`).
+  - `ModbusRabbitMqGateway`: Weiterhin voll funktionsfähig als Ausweich-Bridge für alle 4 Feldgeräte (Charger `1502`, Battery `1503`, PV `1504`, Wind `1505`).
   - `ModbusTelemetryMapper`: Vollständige Extraktion der allgemeinen Register (1–12) sowie feldspezifischer Werte für PV (Einstrahlung, Temperatur, Bewölkung) und Wind (Windgeschwindigkeit, Rotor-RPM, Pitch-Winkel).
   - `RabbitMqViewer`: Visualisiert Live-Telemetrie aller Simulatoren (Charger, Battery, PV mit 100 kW Skala, Wind mit 3000 kW Skala).
-- **Tests & Build:** Vollständiger Solution-Build (`dotNET_Programmierung_2026_Aufgabe_02.slnx`) baut fehlerfrei (0 Fehler, 0 Warnungen außer optionaler Assembly-Referenzwarnung). Alle 9/9 Unit- und Integrations-Tests in `TeamRabbitMQShared.Tests` bestehen erfolgreich.
+- **Tests & Build:** Vollständiger Solution-Build (`dotNET_Programmierung_2026_Aufgabe_02.slnx`) baut fehlerfrei (0 Fehler, 0 Warnungen). Alle 9/9 Unit- und Integrations-Tests in `TeamRabbitMQShared.Tests` bestehen erfolgreich.
 
 ### 3.2 Wartung & Ausblick
 - Simulatoren und Gateway sind betriebsbereit und können nun mit der geordneten Startreihenfolge ausgeführt werden.

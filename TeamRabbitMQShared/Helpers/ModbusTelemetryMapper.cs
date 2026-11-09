@@ -123,11 +123,13 @@ public static class ModbusTelemetryMapper
             command.CommandType.Equals("Setpoint", StringComparison.OrdinalIgnoreCase))
         {
             int[] regs = ModbusClient.ConvertFloatToRegisters((float)command.Value);
-            client.WriteMultipleRegisters(CommonRegisterMap.Setpoint_High, regs);
+            // In EasyModbus client, protocol address is 0-based: Setpoint_High (10) corresponds to address 9
+            client.WriteMultipleRegisters(CommonRegisterMap.Setpoint_High - 1, regs);
         }
         else if (command.CommandType.Equals("ResetFault", StringComparison.OrdinalIgnoreCase))
         {
-            client.WriteSingleRegister(CommonRegisterMap.ResetError, 1);
+            // ResetError (12) corresponds to address 11
+            client.WriteSingleRegister(CommonRegisterMap.ResetError - 1, 1);
         }
     }
 }

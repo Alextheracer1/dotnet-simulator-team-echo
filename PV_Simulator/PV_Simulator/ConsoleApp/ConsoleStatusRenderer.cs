@@ -20,7 +20,9 @@ public sealed class ConsoleStatusRenderer
         double speedMultiplier,
         int totalSteps,
         string selectedWeatherControl,
-        TimeSpan masterTimeStep)
+        TimeSpan masterTimeStep,
+        bool rabbitMqConnected = false,
+        long rabbitMqPublishedCount = 0)
     {
         if (Console.IsOutputRedirected || Console.IsErrorRedirected)
         {
@@ -67,7 +69,8 @@ public sealed class ConsoleStatusRenderer
             MetricItem.Number("Sonneneinstrahlung", snapshot.IrradianceWattsPerSquareMeter, "W/m²", "bold gold1", "0", "☀️"),
             MetricItem.Number("PV-Nennleistung", array.ModuleNominalPowerKilowattsPeak, "kWp", "bold cyan", "0.0", "🔌"),
             MetricItem.Number("Wechselrichter max.", inverter.RatedPowerKilowatts, "kW", "bold cyan", "0.0", "🔋"),
-            MetricItem.Text("WR-Status", snapshot.InverterStatus.ToString(), snapshot.InverterStatus == InverterStatus.Running ? "bold green3" : (snapshot.InverterStatus == InverterStatus.Faulted ? "bold red" : "grey74"), "⚙️")
+            MetricItem.Text("WR-Status", snapshot.InverterStatus.ToString(), snapshot.InverterStatus == InverterStatus.Running ? "bold green3" : (snapshot.InverterStatus == InverterStatus.Faulted ? "bold red" : "grey74"), "⚙️"),
+            MetricItem.Text("RabbitMQ Telemetrie", rabbitMqConnected ? $"Verbunden ({rabbitMqPublishedCount} gesendet)" : "Broker Offline (Fallback aktiv)", rabbitMqConnected ? "bold chartreuse3" : "dim grey", "🐇")
         };
 
         // Section 2: Environment & Weather

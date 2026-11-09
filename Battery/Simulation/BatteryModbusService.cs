@@ -169,7 +169,7 @@ public sealed class BatteryModbusService : IAsyncDisposable
         _server.UpdateCommonRegisters(
             operatingState,
             errorCode,
-            (float)snapshot.ActivePowerKW,
+            (float)(snapshot.ActivePowerKW * 1000d),
             (float)snapshot.CumulativeEnergyKWh,
             unchecked((int)snapshot.Sequence),
             snapshot.IsOn ? (short)1 : (short)0);

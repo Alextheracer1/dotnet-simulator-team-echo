@@ -16,7 +16,9 @@ public sealed class ConsoleStatusRenderer
         SimulationSnapshot snapshot,
         SimulationOptions options,
         double speedMultiplier,
-        int? totalSteps)
+        int? totalSteps,
+        bool rabbitConnected = false,
+        long rabbitCount = 0)
     {
         if (Console.IsOutputRedirected || Console.IsErrorRedirected)
         {
@@ -60,7 +62,8 @@ public sealed class ConsoleStatusRenderer
             MetricItem.Number("Nennleistung (Limit)", options.RatedPowerKw, "kW", "bold cyan", "0.0", "🔌"),
             MetricItem.Number("Tagesenergie", snapshot.CumulativeEnergyKwh, "kWh", "bold white", "0.000", "📊"),
             MetricItem.Number("Rotor-Drehzahl", rotorRpm, "rpm", "bold green3", "0.0", "🔄"),
-            MetricItem.Number("Blade Pitch-Winkel", pitchAngle, "°", "bold white", "0.0", "📐")
+            MetricItem.Number("Blade Pitch-Winkel", pitchAngle, "°", "bold white", "0.0", "📐"),
+            MetricItem.Text("RabbitMQ Telemetrie", rabbitConnected ? $"Verbunden ({rabbitCount} gesendet)" : "Broker Offline (Fallback aktiv)", rabbitConnected ? "bold chartreuse3" : "dim grey", "🐇")
         };
 
         // Section 2: Aerodynamics & Weather

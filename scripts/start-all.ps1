@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Energy Twin 2026 - Windows Startup Script (PowerShell)
 .DESCRIPTION
@@ -15,7 +15,7 @@ $ErrorActionPreference = "Stop"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $repoRoot = (Resolve-Path "$scriptDir\..").Path
-Set-Location -Path $repoRoot
+Set-Location -LiteralPath $repoRoot
 
 Write-Host "==============================================================================" -ForegroundColor Cyan
 Write-Host "⚡ Energy Twin 2026 - Windows Startup Script (PowerShell)" -ForegroundColor Cyan
@@ -28,8 +28,11 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-# 2. RabbitMQ über Docker starten
-if (Get-Command docker -ErrorAction SilentlyContinue) {
+# 2. RabbitMQ über Docker starten (falls Docker verfügbar)
+if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
+    Write-Host "🐳 Stelle sicher, dass RabbitMQ via Docker Compose läuft..." -ForegroundColor Yellow
+    docker-compose up -d
+} elseif (Get-Command docker -ErrorAction SilentlyContinue) {
     Write-Host "🐳 Stelle sicher, dass RabbitMQ via Docker Compose läuft..." -ForegroundColor Yellow
     docker compose up -d
 } else {
@@ -39,33 +42,45 @@ if (Get-Command docker -ErrorAction SilentlyContinue) {
 $hasWt = (Get-Command wt.exe -ErrorAction SilentlyContinue) -and (-not $ForceSeparateWindows)
 
 $apps = @(
-    @{ Name = "Simulations-Master"; Path = "Simulations-Master/Simulations-Master.csproj"; Delay = 3; Color = "Green" },
-    @{ Name = "Weather-Simulator";   Path = "WeatherSimulator/WeatherSimulator.csproj";   Delay = 2; Color = "Cyan" },
-    @{ Name = "Dual-Port-Charger";   Path = "Dual-Port-Charger/Dual-Port-Charger.csproj"; Delay = 1; Color = "Magenta" },
-    @{ Name = "Battery";             Path = "Battery/Battery.csproj";                     Delay = 1; Color = "Blue" },
-    @{ Name = "PV-Simulator";        Path = "PV_Simulator/PV_Simulator/PV_Simulator.csproj"; Delay = 1; Color = "Yellow" },
-    @{ Name = "WindTurbine";         Path = "WindTurbine_Simulator/WindTurbine_Simulator.csproj"; Delay = 1; Color = "DarkCyan" },
-    @{ Name = "Modbus-Gateway";      Path = "ModbusRabbitMqGateway/ModbusRabbitMqGateway.csproj"; Delay = 1; Color = "DarkYellow" },
-    @{ Name = "RabbitMQ-Viewer";     Path = "RabbitMqViewer/RabbitMqViewer.csproj";       Delay = 1; Color = "DarkGreen" }
+    @{ Name = "Simulations-Master"; Path = "Simulations-Master\Simulations-Master.csproj"; Delay = 3; Color = "Green" },
+    @{ Name = "Weather-Simulator";   Path = "WeatherSimulator\WeatherSimulator.csproj";   Delay = 2; Color = "Cyan" },
+    @{ Name = "Dual-Port-Charger";   Path = "Dual-Port-Charger\Dual-Port-Charger.csproj"; Delay = 1; Color = "Magenta" },
+    @{ Name = "Battery";             Path = "Battery\Battery.csproj";                     Delay = 1; Color = "Blue" },
+    @{ Name = "PV-Simulator";        Path = "PV_Simulator\PV_Simulator\PV_Simulator.csproj"; Delay = 1; Color = "Yellow" },
+    @{ Name = "WindTurbine";         Path = "WindTurbine_Simulator\WindTurbine_Simulator.csproj"; Delay = 1; Color = "DarkCyan" },
+    @{ Name = "Modbus-Gateway";      Path = "ModbusRabbitMqGateway\ModbusRabbitMqGateway.csproj"; Delay = 1; Color = "DarkYellow" },
+    @{ Name = "RabbitMQ-Viewer";     Path = "RabbitMqViewer\RabbitMqViewer.csproj";       Delay = 1; Color = "DarkGreen" }
 )
 
 Write-Host "`nStarte Simulationsmodule in geordneter Reihenfolge..." -ForegroundColor White
 
 for ($i = 0; $i -lt $apps.Count; $i++) {
     $app = $apps[$i]
-    $step = "[$($i + 1)/$($apps.Count)]"
-    Write-Host "$step Starte $($app.Name)..." -ForegroundColor $app.Color
+    $stepNum = $i + 1
+    $totalApps = $apps.Count
+    Write-Host "[$stepNum/$totalApps] Starte $($app.Name)..." -ForegroundColor $app.Color
 
-    $command = "Set-Location -Path '$repoRoot'; `$host.UI.RawUI.WindowTitle = 'EnergyTwin: $($app.Name)'; dotnet run --project $($app.Path)"
+    $projectFullPath = Join-Path $repoRoot $app.Path
+    $title = "EnergyTwin: $($app.Name)"
+    $command = "Set-Location -LiteralPath '$repoRoot'; `$host.UI.RawUI.WindowTitle = '$title'; dotnet run --project '$projectFullPath'"
 
+    $startedInWt = $false
     if ($hasWt) {
-        if ($i -eq 0) {
-            Start-Process wt.exe -ArgumentList "-w 0 nt -d `"$repoRoot`" --title `"EnergyTwin: $($app.Name)`" powershell -NoExit -Command `"$command`""
-        } else {
-            Start-Process wt.exe -ArgumentList "-w 0 nt -d `"$repoRoot`" --title `"EnergyTwin: $($app.Name)`" powershell -NoExit -Command `"$command`""
+        try {
+            if ($i -eq 0) {
+                Start-Process wt.exe -ArgumentList @("-d", $repoRoot, "--title", $title, "powershell.exe", "-NoExit", "-Command", $command)
+            } else {
+                Start-Process wt.exe -ArgumentList @("-w", "0", "nt", "-d", $repoRoot, "--title", $title, "powershell.exe", "-NoExit", "-Command", $command)
+            }
+            $startedInWt = $true
+        } catch {
+            Write-Warning "Windows Terminal konnte nicht gestartet werden, wechsle auf separates Fenster..."
+            $hasWt = $false
         }
-    } else {
-        Start-Process powershell.exe -ArgumentList "-NoExit", "-Command", $command
+    }
+
+    if (-not $startedInWt) {
+        Start-Process powershell.exe -ArgumentList @("-NoExit", "-Command", $command)
     }
 
     Start-Sleep -Seconds $app.Delay

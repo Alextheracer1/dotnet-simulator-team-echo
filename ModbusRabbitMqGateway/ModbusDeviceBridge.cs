@@ -37,17 +37,16 @@ public class ModbusDeviceBridge : IDisposable
                     return null;
                 }
 
-                // In EasyModbus, ReadHoldingRegisters(startingAddress, quantity)
-                // Register 1 corresponds to offset 1
-                var registers = _client.ReadHoldingRegisters(1, _endpoint.RegisterCount);
+                // In EasyModbus client, ReadHoldingRegisters(startingAddress, quantity) uses 0-based protocol addressing:
+                // Address 0 corresponds to Holding Register 1 on the server.
+                var registers = _client.ReadHoldingRegisters(0, _endpoint.RegisterCount);
                 if (registers is null || registers.Length == 0)
                 {
                     PollFailureCount++;
                     return null;
                 }
 
-                // In EasyModbus, returned array has index 0 corresponding to startingAddress
-                // Build a 1-indexed array for the mapper
+                // Build a 1-indexed array for the mapper (index 1 corresponds to CommonRegisterMap.OperatingState = 1)
                 var normalizedRegisters = new int[registers.Length + 1];
                 Array.Copy(registers, 0, normalizedRegisters, 1, registers.Length);
 

@@ -7,6 +7,9 @@ using PV_Simulator.Modbus;
 using PV_Simulator.Simulation;
 using Spectre.Console;
 using TeamConsoleShared;
+using TeamRabbitMQShared.Configuration;
+using TeamRabbitMQShared.Consumer;
+using TeamRabbitMQShared.Publisher;
 using TeamShared.Weather;
 
 SimulationTheme.InitializeConsole();
@@ -55,6 +58,11 @@ try
     modbusServer.Start();
     AnsiConsole.MarkupLine($"[grey62][[Modbus]][/] Server lauscht auf Port [bold cyan]{modbusPort}[/] (Unit ID: [bold cyan]1[/])");
 
+    var rabbitConfig = RabbitMqConfiguration.CreateDefault();
+    await using var rabbitPublisher = new RabbitMqPublisher(rabbitConfig);
+    await using var rabbitConsumer = new RabbitMqConsumer(rabbitConfig);
+    AnsiConsole.MarkupLine($"[grey62][[RabbitMQ]][/] Initialisiere Broker-Anbindung auf [bold cyan]{rabbitConfig.HostName}:{rabbitConfig.Port}[/]...");
+
     var safeDeviceId = string.Concat(array.DeviceId.Select(character =>
         Path.GetInvalidFileNameChars().Contains(character) ? '_' : character));
     var csvPath = Path.Combine(
@@ -63,7 +71,7 @@ try
         $"pv-simulation-{safeDeviceId}-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.csv");
     await using var csvLogger = new CsvSimulationLogger(csvPath, array, inverter);
     AnsiConsole.MarkupLine($"[grey62]CSV-Protokoll:[/] [cyan]{Markup.Escape(csvLogger.FilePath)}[/]");
-    await runner.RunAsync(engine, location, array, inverter, settings, csvLogger, masterClient, weatherReceiver, modbusServer);
+    await runner.RunAsync(engine, location, array, inverter, settings, csvLogger, masterClient, weatherReceiver, modbusServer, rabbitPublisher, rabbitConsumer);
     AnsiConsole.MarkupLine("[bold green]Simulation abgeschlossen.[/]");
 }
 catch (Exception exception) when (exception is IOException or InvalidDataException or InvalidOperationException or ArgumentException)

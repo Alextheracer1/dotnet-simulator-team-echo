@@ -1,6 +1,9 @@
 using WindTurbine_Simulator.Configuration;
 using WindTurbine_Simulator.Domain;
 using WindTurbine_Simulator.Modbus;
+using TeamRabbitMQShared.Consumer;
+using TeamRabbitMQShared.Models;
+using TeamRabbitMQShared.Publisher;
 using TeamShared.Simulation;
 using TeamShared.Weather;
 
@@ -11,15 +14,26 @@ public sealed class WindTurbineSimulationRunner
     private readonly WindTurbineModel _model;
     private readonly SimulationOptions _options;
     private readonly WindTurbineModbusService _modbusService;
+    private readonly IRabbitMqPublisher? _rabbitPublisher;
+    private readonly IRabbitMqConsumer? _rabbitConsumer;
+    private double? _rabbitPowerLimitKw;
+    private bool _isFaulted;
+
+    public bool RabbitMqConnected => _rabbitPublisher?.IsConnected ?? false;
+    public long RabbitMqPublishedCount => _rabbitPublisher?.PublishedCount ?? 0;
 
     public WindTurbineSimulationRunner(
         WindTurbineModel model,
         SimulationOptions options,
-        WindTurbineModbusService modbusService)
+        WindTurbineModbusService modbusService,
+        IRabbitMqPublisher? rabbitPublisher = null,
+        IRabbitMqConsumer? rabbitConsumer = null)
     {
         _model = model;
         _options = options;
         _modbusService = modbusService;
+        _rabbitPublisher = rabbitPublisher;
+        _rabbitConsumer = rabbitConsumer;
     }
 
     public async IAsyncEnumerable<SimulationSnapshot> RunAsync(
@@ -27,6 +41,18 @@ public sealed class WindTurbineSimulationRunner
         WeatherCallbackReceiver? weatherReceiver,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        if (_rabbitPublisher != null)
+        {
+            await _rabbitPublisher.StartAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        if (_rabbitConsumer != null)
+        {
+            await _rabbitConsumer.StartAsync(cancellationToken).ConfigureAwait(false);
+            await _rabbitConsumer.SubscribeCommandsAsync("sim.commands.wind.#", HandleRemoteCommandAsync, cancellationToken).ConfigureAwait(false);
+            await _rabbitConsumer.SubscribeCommandsAsync("sim.commands.*.wind-1", HandleRemoteCommandAsync, cancellationToken).ConfigureAwait(false);
+        }
+
         var environment = await masterClient.RequestEnvironmentAsync(cancellationToken).ConfigureAwait(false)
             ?? throw new IOException("Der Simulation Master hat keine Startzeit geliefert.");
         var simulatedAt = ToUtcOffset(environment.VirtualTime);
@@ -52,12 +78,46 @@ public sealed class WindTurbineSimulationRunner
                 ? CalculateWindSpeedFromSnapshot(weatherSnapshot)
                 : GenerateSimulatedWindSpeedMps(targetTime);
             var rawPowerKw = await CalculateActivePowerKwAsync(windSpeedMps, cancellationToken).ConfigureAwait(false);
-            var activePowerKw = Math.Min(rawPowerKw, _modbusService.ReadPowerLimitSetpoint());
+            var modbusLimit = _modbusService.ReadPowerLimitSetpoint();
+            if (modbusLimit > 10000)
+            {
+                modbusLimit = modbusLimit / 1000f;
+            }
+            var limit = _rabbitPowerLimitKw.HasValue ? Math.Min(modbusLimit, (float)_rabbitPowerLimitKw.Value) : modbusLimit;
+            var activePowerKw = _isFaulted ? 0.0 : Math.Min(rawPowerKw, limit);
             cumulativeEnergyKwh += activePowerKw * timeStep.TotalHours;
-            var rotorRpm = windSpeedMps * 1.5;
-            var pitchAngle = activePowerKw >= _model.RatedPowerKw ? 12.0 : 0.0;
+            var rotorRpm = _isFaulted ? 0.0 : windSpeedMps * 1.5;
+            var pitchAngle = _isFaulted ? 90.0 : (activePowerKw >= _model.RatedPowerKw ? 12.0 : 0.0);
             var snapshot = new SimulationSnapshot(step, targetTime, windSpeedMps, activePowerKw, cumulativeEnergyKwh, speedMultiplier);
             _modbusService.Update(snapshot, rotorRpm, pitchAngle);
+
+            if (_rabbitPublisher != null)
+            {
+                var telemetry = new DeviceTelemetryMessage
+                {
+                    DeviceId = "wind-1",
+                    DeviceType = "wind",
+                    Timestamp = DateTime.UtcNow,
+                    VirtualTime = targetTime.ToUnixTimeSeconds(),
+                    OperatingState = (short)(_isFaulted ? 3 : (snapshot.ActivePowerKw > 0 ? 2 : (snapshot.WindSpeedMps < 3.0 ? 0 : 2))),
+                    ErrorCode = (short)(_isFaulted ? 1 : 0),
+                    ActivePowerWatts = snapshot.ActivePowerKw * 1000.0,
+                    CumulativeEnergyKwh = snapshot.CumulativeEnergyKwh,
+                    IsOn = !_isFaulted,
+                    ModbusPort = _options.ModbusPort,
+                    ModbusUnitId = _options.ModbusUnitId
+                };
+                telemetry.SetMetric("WindSpeed", snapshot.WindSpeedMps);
+                telemetry.SetMetric("RotorRpm", rotorRpm);
+                telemetry.SetMetric("PitchAngle", pitchAngle);
+                if (_rabbitPowerLimitKw.HasValue)
+                {
+                    telemetry.SetMetric("PowerLimitKw", _rabbitPowerLimitKw.Value);
+                }
+
+                await _rabbitPublisher.PublishTelemetryAsync(telemetry, cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+
             return snapshot;
         }
 
@@ -233,7 +293,32 @@ public sealed class WindTurbineSimulationRunner
         return _model.CalculateActivePowerKw(windSpeedMps);
     }
 
-    
+    private Task HandleRemoteCommandAsync(DeviceCommandMessage cmd)
+    {
+        if (cmd.CommandType.Equals("SetPowerLimit", StringComparison.OrdinalIgnoreCase) ||
+            cmd.CommandType.Equals("Setpoint", StringComparison.OrdinalIgnoreCase))
+        {
+            if (cmd.Value > 0)
+            {
+                var limitKw = cmd.Value > 1000 ? cmd.Value / 1000.0 : cmd.Value;
+                _rabbitPowerLimitKw = limitKw;
+            }
+            else
+            {
+                _rabbitPowerLimitKw = null;
+            }
+        }
+        else if (cmd.CommandType.Equals("ResetFault", StringComparison.OrdinalIgnoreCase))
+        {
+            _isFaulted = false;
+        }
+        else if (cmd.CommandType.Equals("TriggerFault", StringComparison.OrdinalIgnoreCase))
+        {
+            _isFaulted = true;
+        }
+
+        return Task.CompletedTask;
+    }
 }
 
 

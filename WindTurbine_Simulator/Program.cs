@@ -1,6 +1,9 @@
 using System.Globalization;
 using Spectre.Console;
 using TeamConsoleShared;
+using TeamRabbitMQShared.Configuration;
+using TeamRabbitMQShared.Consumer;
+using TeamRabbitMQShared.Publisher;
 using TeamShared.Weather;
 using WindTurbine_Simulator.Configuration;
 using WindTurbine_Simulator.ConsoleApp;
@@ -23,7 +26,12 @@ using var modbusServer = new WindTurbineModbusService(options.ModbusPort, option
 modbusServer.Start();
 AnsiConsole.MarkupLine($"[grey62][[Modbus]][/] Server lauscht auf Port [bold cyan]{options.ModbusPort}[/] (Unit ID: [bold cyan]{options.ModbusUnitId}[/])");
 
-var runner = new WindTurbineSimulationRunner(model, options, modbusServer);
+var rabbitConfig = RabbitMqConfiguration.CreateDefault();
+await using var rabbitPublisher = new RabbitMqPublisher(rabbitConfig);
+await using var rabbitConsumer = new RabbitMqConsumer(rabbitConfig);
+AnsiConsole.MarkupLine($"[grey62][[RabbitMQ]][/] Initialisiere Broker-Anbindung auf [bold cyan]{rabbitConfig.HostName}:{rabbitConfig.Port}[/]...");
+
+var runner = new WindTurbineSimulationRunner(model, options, modbusServer, rabbitPublisher, rabbitConsumer);
 var statusRenderer = new ConsoleStatusRenderer();
 using var cancellationTokenSource = new CancellationTokenSource();
 
@@ -65,7 +73,7 @@ try
     await masterClient.ConnectWithRetryAsync(cancellationTokenSource.Token);
     await foreach (var snapshot in runner.RunAsync(masterClient, weatherReceiver, cancellationTokenSource.Token))
     {
-        statusRenderer.Render(snapshot, options, snapshot.SpeedMultiplier, totalSteps);
+        statusRenderer.Render(snapshot, options, snapshot.SpeedMultiplier, totalSteps, runner.RabbitMqConnected, runner.RabbitMqPublishedCount);
         await csvLogger.WriteAsync(snapshot, cancellationTokenSource.Token);
     }
 
