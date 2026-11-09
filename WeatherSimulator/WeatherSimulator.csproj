@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TeamShared\TeamShared.csproj" />
+    <ProjectReference Include="..\TeamConsoleShared\TeamConsoleShared.csproj" />
     <None Update="Data\wetterdaten_salzburg.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
