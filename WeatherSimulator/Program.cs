@@ -1,11 +1,18 @@
+using System.Diagnostics;
 using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
+using Spectre.Console;
+using TeamConsoleShared;
 using TeamShared.Simulation;
 using TeamShared.Weather;
+using WeatherSimulator.ConsoleUi;
 using WeatherSimulator.Models;
 using WeatherSimulator.Services;
 
+SimulationTheme.InitializeConsole();
+
 var builder = WebApplication.CreateBuilder(args);
+builder.Logging.ClearProviders();
 
 var masterHost = builder.Configuration["SimulationMaster:Host"]
     ?? Environment.GetEnvironmentVariable("SIMULATION_MASTER_HOST")
@@ -33,14 +40,20 @@ var resolvedCsvPath = ResolveCsvPath(csvConfigPath);
 
 if (resolvedCsvPath == null)
 {
-    Console.ForegroundColor = ConsoleColor.Red;
-    Console.Error.WriteLine($"[FEHLER] Die Wetter-CSV-Datei konnte nicht gefunden werden (gesucht nach '{csvConfigPath}').");
-    Console.ResetColor();
+    if (Console.IsOutputRedirected)
+    {
+        Console.Error.WriteLine($"[FEHLER] Die Wetter-CSV-Datei konnte nicht gefunden werden (gesucht nach '{csvConfigPath}').");
+    }
+    else
+    {
+        AnsiConsole.MarkupLine($"[bold red][FEHLER][/] Die Wetter-CSV-Datei konnte nicht gefunden werden (gesucht nach '[yellow]{Markup.Escape(csvConfigPath)}[/]').");
+    }
     Environment.Exit(1);
 }
 
 // Services registrieren
 builder.Services.AddHttpClient("WeatherPusher");
+builder.Services.AddSingleton<IWeatherActivityLogger, WeatherActivityLogger>();
 builder.Services.AddSingleton<IWeatherClientRegistry, WeatherClientRegistry>();
 builder.Services.AddSingleton<IWeatherSnapshotPusher, WeatherSnapshotPusher>();
 builder.Services.AddSingleton<ISolarPositionCalculator, SolarPositionCalculator>();
@@ -59,8 +72,7 @@ builder.Services.AddSingleton<IWeatherService, WeatherService>();
 
 var app = builder.Build();
 
-// Startup-Info ausgeben
-PrintStartupBanner(port, resolvedCsvPath, dataset);
+var dashboard = new WeatherConsoleDashboard(port, masterHost, masterPort, resolvedCsvPath, dataset);
 
 // Root Info-Endpunkt
 app.MapGet("/", () => Results.Ok(new
@@ -88,7 +100,7 @@ app.MapGet("/api/weather", (
     [FromQuery] double? lon,
     [FromQuery] string? time,
     IWeatherService weatherService,
-    ILogger<Program> logger) =>
+    IWeatherActivityLogger activityLogger) =>
 {
     if (!lat.HasValue || !lon.HasValue || string.IsNullOrWhiteSpace(time))
     {
@@ -119,14 +131,17 @@ app.MapGet("/api/weather", (
     }
 
     var result = weatherService.GetWeather(lat.Value, lon.Value, parsedTime);
-
-    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Weather GET: ({lat.Value:F2}, {lon.Value:F2}) @ {parsedTime:s} -> {result.TemperatureC}°C, Sun: Az={result.Azimuth}°, El={result.Elevation}°");
+    activityLogger.IncrementGetRequests();
+    activityLogger.Log($"[cyan]GET[/] ({lat.Value:F1}°, {lon.Value:F1}°) @ {parsedTime:HH:mm:ss} -> {result.TemperatureC:F1}°C");
 
     return Results.Ok(result);
 });
 
 // Registrierung für Feldgeräte (PV, Wind)
-app.MapPost("/api/weather/register", (DeviceWeatherRegistration registration, IWeatherClientRegistry registry) =>
+app.MapPost("/api/weather/register", (
+    DeviceWeatherRegistration registration,
+    IWeatherClientRegistry registry,
+    IWeatherActivityLogger activityLogger) =>
 {
     if (string.IsNullOrWhiteSpace(registration.DeviceId) || string.IsNullOrWhiteSpace(registration.CallbackUrl))
     {
@@ -134,7 +149,7 @@ app.MapPost("/api/weather/register", (DeviceWeatherRegistration registration, IW
     }
 
     registry.Register(registration);
-    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Weather Register] Feldgerät registriert: {registration.DeviceId} ({registration.DeviceType}) @ {registration.CallbackUrl} ({registration.Latitude:F2}, {registration.Longitude:F2})");
+    activityLogger.Log($"[chartreuse3]REG[/] [bold white]{registration.DeviceId}[/] ({registration.DeviceType})");
     return Results.Ok(new
     {
         status = "Registered",
@@ -146,7 +161,73 @@ app.MapPost("/api/weather/register", (DeviceWeatherRegistration registration, IW
 
 app.MapGet("/api/weather/clients", (IWeatherClientRegistry registry) => Results.Ok(registry.GetAll()));
 
-app.Run();
+var cts = new CancellationTokenSource();
+ConsoleCancelEventHandler cancelHandler = (_, e) =>
+{
+    e.Cancel = true;
+    cts.Cancel();
+};
+Console.CancelKeyPress += cancelHandler;
+
+var activityLog = app.Services.GetRequiredService<IWeatherActivityLogger>();
+var clock = app.Services.GetRequiredService<WeatherSimulationClock>();
+var weatherSvc = app.Services.GetRequiredService<IWeatherService>();
+var clientReg = app.Services.GetRequiredService<IWeatherClientRegistry>();
+
+activityLog.Log($"Server auf Port [bold cyan]{port}[/] gestartet");
+activityLog.Log($"CSV: [bold white]{dataset.TotalRecords:N0}[/] Datensätze geladen");
+
+SimulationTheme.ResetConsole();
+await app.StartAsync(cts.Token);
+
+var lastRenderTimestamp = Stopwatch.GetTimestamp();
+
+try
+{
+    while (!cts.IsCancellationRequested)
+    {
+        dashboard.Render(weatherSvc, clock, clientReg, activityLog);
+        lastRenderTimestamp = Stopwatch.GetTimestamp();
+
+        while (!cts.IsCancellationRequested)
+        {
+            if (!Console.IsInputRedirected && Console.KeyAvailable)
+            {
+                var key = Console.ReadKey(intercept: true).Key;
+                if (key is ConsoleKey.Q or ConsoleKey.X)
+                {
+                    cts.Cancel();
+                    break;
+                }
+                if (key == ConsoleKey.R)
+                {
+                    break; // Sofortiger Refresh
+                }
+            }
+
+            if (SimulationTheme.CheckResize())
+            {
+                break; // Sofortiger Re-Render bei Terminal-Größenänderung
+            }
+
+            if (Stopwatch.GetElapsedTime(lastRenderTimestamp) >= TimeSpan.FromSeconds(1))
+            {
+                break; // 1-Sekunden-Takt
+            }
+
+            await Task.Delay(50, cts.Token).ConfigureAwait(false);
+        }
+    }
+}
+finally
+{
+    Console.CancelKeyPress -= cancelHandler;
+    await app.StopAsync();
+    if (!Console.IsOutputRedirected)
+    {
+        AnsiConsole.MarkupLine("\n[bold yellow]WeatherSimulator ordnungsgemäß beendet.[/]");
+    }
+}
 
 // Helper-Methoden
 static string? ResolveCsvPath(string relativeOrAbsolutePath)
@@ -182,25 +263,3 @@ static string? ResolveCsvPath(string relativeOrAbsolutePath)
 
     return null;
 }
-
-static void PrintStartupBanner(int port, string csvPath, WeatherDataset dataset)
-{
-    Console.WriteLine();
-    Console.WriteLine("================================================================================");
-    Console.WriteLine("                  WeatherSimulator - Digital Twin Weather Provider              ");
-    Console.WriteLine("================================================================================");
-    Console.WriteLine($" Local Endpoint : http://localhost:{port}/api/weather");
-    Console.WriteLine($" Push Register  : http://localhost:{port}/api/weather/register");
-    Console.WriteLine($" CSV Data Source: {csvPath}");
-    Console.WriteLine($" Total Records  : {dataset.TotalRecords:N0} Zeilen");
-    Console.WriteLine($" Locations      : {dataset.SeriesByLocation.Count} Standort(e)");
-    foreach (var s in dataset.SeriesByLocation)
-    {
-        Console.WriteLine($"   - Lat: {s.Latitude:F2}, Lon: {s.Longitude:F2} ({s.Records.Count} Stützstellen von {s.MinTime:yyyy-MM-dd} bis {s.MaxTime:yyyy-MM-dd})");
-    }
-    Console.WriteLine("================================================================================");
-    Console.WriteLine($" Beispielabfrage: http://localhost:{port}/api/weather?lat=47.77&lon=13.09&time={DateTime.UtcNow:yyyy-MM-ddTHH:mm:ssZ}");
-    Console.WriteLine("================================================================================");
-    Console.WriteLine();
-}
-

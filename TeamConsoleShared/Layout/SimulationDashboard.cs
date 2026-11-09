@@ -70,9 +70,23 @@ public sealed class SimulationDashboard
             .BorderStyle(new Style(foreground: borderColor ?? Color.Grey42))
             .Expand();
 
+        int consoleWidth = 120;
+        if (!Console.IsOutputRedirected)
+        {
+            try
+            {
+                consoleWidth = Console.WindowWidth;
+            }
+            catch
+            {
+                // Fallback to default
+            }
+        }
+
+        var colWidth = Math.Max(20, (consoleWidth - 2) / 2);
         var table = new Table().NoBorder().HideHeaders().Expand();
-        table.AddColumn(new TableColumn("Left"));
-        table.AddColumn(new TableColumn("Right"));
+        table.AddColumn(new TableColumn("Left") { Width = colWidth });
+        table.AddColumn(new TableColumn("Right") { Width = colWidth });
         table.AddRow(leftPanel, rightPanel);
 
         _sections.Add(table);
@@ -146,7 +160,7 @@ public sealed class SimulationDashboard
     /// Directly writes the dashboard to the console with frame lifecycle management,
     /// window size validation, and vertical clipping to prevent terminal scrolling.
     /// </summary>
-    public void Render()
+    public void Render(bool clearConsole = false)
     {
         if (!Console.IsOutputRedirected)
         {
@@ -171,7 +185,7 @@ public sealed class SimulationDashboard
             }
         }
 
-        SimulationTheme.PrepareFrame();
+        SimulationTheme.PrepareFrame(clearConsole);
 
         var maxLines = !Console.IsOutputRedirected
             ? Math.Max(5, Console.WindowHeight - 1)

@@ -1,3 +1,10 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using TeamShared.Simulation;
 
 namespace WeatherSimulator.Services;
@@ -6,22 +13,20 @@ public sealed class WeatherSimulationMasterWorker(
     ITimeMasterClient masterClient,
     WeatherSimulationClock clock,
     IWeatherSnapshotPusher weatherPusher,
-    ILogger<WeatherSimulationMasterWorker> logger) : BackgroundService
+    IWeatherActivityLogger? activityLogger = null,
+    ILogger<WeatherSimulationMasterWorker>? logger = null) : BackgroundService
 {
-    public override async Task StartAsync(CancellationToken cancellationToken)
+    public override Task StartAsync(CancellationToken cancellationToken)
     {
-        await masterClient.ConnectWithRetryAsync(cancellationToken).ConfigureAwait(false);
-        if (!await ApplyCurrentEnvironmentAsync(cancellationToken).ConfigureAwait(false))
-            throw new InvalidOperationException("Der WeatherSimulator benötigt vor dem HTTP-Start eine gültige virtuelle Zeit vom Simulation Master.");
-        await base.StartAsync(cancellationToken).ConfigureAwait(false);
+        return base.StartAsync(cancellationToken);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var fallbackTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         var fallbackTick = fallbackTimer.WaitForNextTickAsync(stoppingToken).AsTask();
-        var messageTask = masterClient.WaitForNextMessageAsync(stoppingToken);
-        Task? connectionTask = null;
+        Task<SimulationMessage?>? messageTask = masterClient.IsConnected ? masterClient.WaitForNextMessageAsync(stoppingToken) : null;
+        Task? connectionTask = masterClient.IsConnected ? null : masterClient.ConnectWithRetryAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -38,7 +43,15 @@ public sealed class WeatherSimulationMasterWorker(
                 await connectionTask.ConfigureAwait(false);
                 connectionTask = null;
                 clock.SetMasterConnected(true);
-                await ApplyCurrentEnvironmentAsync(stoppingToken).ConfigureAwait(false);
+                var applied = await ApplyCurrentEnvironmentAsync(stoppingToken).ConfigureAwait(false);
+                if (applied)
+                {
+                    activityLogger?.Log($"[chartreuse3]Master-Sync:[/] Verbunden. Virtuelle Zeit: {clock.VirtualTime:yyyy-MM-dd HH:mm:ss}");
+                }
+                else
+                {
+                    activityLogger?.Log("[yellow]Master-Sync:[/] Verbunden, warte auf Initial-Umgebung...");
+                }
                 messageTask = masterClient.WaitForNextMessageAsync(stoppingToken);
                 continue;
             }
@@ -50,7 +63,8 @@ public sealed class WeatherSimulationMasterWorker(
                 if (message is null)
                 {
                     clock.SetMasterConnected(false);
-                    logger.LogWarning("Verbindung zum Simulation Master verloren; virtuelle Zeit läuft mit dem letzten Zeitschritt weiter.");
+                    activityLogger?.Log("[red]Master-Sync:[/] Verbindung verloren! Reconnect läuft...");
+                    logger?.LogWarning("Verbindung zum Simulation Master verloren; virtuelle Zeit läuft mit dem letzten Zeitschritt weiter.");
                     connectionTask ??= masterClient.ConnectWithRetryAsync(stoppingToken);
                 }
                 else
@@ -70,7 +84,8 @@ public sealed class WeatherSimulationMasterWorker(
                         catch (IOException exception)
                         {
                             clock.SetMasterConnected(false);
-                            logger.LogWarning(exception, "ACK an den Simulation Master fehlgeschlagen.");
+                            activityLogger?.Log($"[red]Master-Sync:[/] ACK fehlgeschlagen ({exception.Message})");
+                            logger?.LogWarning(exception, "ACK an den Simulation Master fehlgeschlagen.");
                             connectionTask ??= masterClient.ConnectWithRetryAsync(stoppingToken);
                         }
                     }

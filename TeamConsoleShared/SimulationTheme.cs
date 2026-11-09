@@ -15,6 +15,7 @@ public static class SimulationTheme
     public static readonly Color GatewayAccent = Color.Cyan1;
     public static readonly Color ViewerAccent = Color.DodgerBlue1;
     public static readonly Color DiagnoseAccent = Color.DarkOrange;
+    public static readonly Color WeatherAccent = Color.SkyBlue1;
 
     private static readonly object _renderLock = new();
     private static int _lastWidth = -1;
@@ -64,11 +65,18 @@ public static class SimulationTheme
 
         try
         {
-            Console.Clear();
+            AnsiConsole.Clear();
         }
         catch
         {
-            // Fallback for redirected or constrained console environments
+            try
+            {
+                Console.Clear();
+            }
+            catch
+            {
+                // Fallback for redirected or constrained console environments
+            }
         }
 
         try
@@ -106,10 +114,10 @@ public static class SimulationTheme
     }
 
     /// <summary>
-    /// Resets the cursor to (0, 0) for flicker-free in-place re-rendering.
-    /// Automatically performs a full console reset if a terminal resize is detected.
+    /// Resets the cursor to (0, 0) for flicker-free, clean in-place re-rendering.
+    /// Performs a full console reset if clearConsole is true or if a terminal resize is detected.
     /// </summary>
-    public static void PrepareFrame()
+    public static void PrepareFrame(bool clearConsole = false)
     {
         if (!Console.IsOutputRedirected)
         {
@@ -120,7 +128,7 @@ public static class SimulationTheme
                     int currentWidth = Console.WindowWidth;
                     int currentHeight = Console.WindowHeight;
 
-                    if (_lastWidth == -1 || currentWidth != _lastWidth || currentHeight != _lastHeight)
+                    if (clearConsole || _lastWidth == -1 || currentWidth != _lastWidth || currentHeight != _lastHeight)
                     {
                         ResetConsole();
                         _lastWidth = currentWidth;

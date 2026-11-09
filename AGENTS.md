@@ -30,6 +30,7 @@ Das Projekt **Energy Twin 2026** ist ein verteiltes Simulationssystem zur Echtze
 | `ModbusDiagnoseClient` | Console Executable | Interaktives Modbus-Testwerkzeug zum Lesen und Schreiben von Registern |
 | `ModbusRabbitMqGateway`| Console Executable | Gateway: Liest Modbus-Register aus und publiziert Sensordaten via RabbitMQ; leitet Steuerbefehle zurück |
 | `RabbitMqViewer` | Console Executable | Interaktiver Live-Monitor für empfangene Sensordaten und RabbitMQ-Nachrichten |
+| `WeatherSimulator` | Console/Web Executable | Wetter- und Sonnendaten-Provider für PV & Windkraft (HTTP Port 5005) |
 
 ---
 
