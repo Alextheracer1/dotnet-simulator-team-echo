@@ -82,3 +82,4 @@ Für automatisierte und wiederkehrende Aufgaben existieren dedizierte Skills unt
 * `skills/modbus-rabbitmq-gateway`: Konfigurieren und Betreiben des Modbus-RabbitMQ Gateways.
 * `skills/rabbitmq-messaging`: Vorlage für RabbitMQ Publisher/Consumer Integration in Feldgeräte.
 * `skills/rabbitmq-viewer`: Starten und Bedienen des RabbitMQ Live-Viewers.
+* `skills/development-journal`: Strukturierte Pflege und Aktualisierung der Entwicklungsjournale in `docs/development-journal/`.
