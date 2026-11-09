@@ -3,7 +3,7 @@
     Energy Twin 2026 - Windows Startup Script (PowerShell)
 .DESCRIPTION
     Startet alle Komponenten der Simulation in geordneter Reihenfolge.
-    Unterstützt sowohl Windows Terminal (wt.exe) mit Tabs als auch separate PowerShell-Fenster.
+    Unterstützt sowohl Windows Terminal (wt.exe) mit Tabs als auch separate Konsolenfenster.
 #>
 
 [CmdletBinding()]
@@ -56,16 +56,15 @@ for ($i = 0; $i -lt $apps.Count; $i++) {
     $step = "[$($i + 1)/$($apps.Count)]"
     Write-Host "$step Starte $($app.Name)..." -ForegroundColor $app.Color
 
-    $command = "Set-Location -Path '$repoRoot'; `$host.UI.RawUI.WindowTitle = 'EnergyTwin: $($app.Name)'; dotnet run --project $($app.Path)"
+    $title = "EnergyTwin: $($app.Name)"
+    $proj = $app.Path
 
     if ($hasWt) {
-        if ($i -eq 0) {
-            Start-Process wt.exe -ArgumentList "-w 0 nt -d `"$repoRoot`" --title `"EnergyTwin: $($app.Name)`" powershell -NoExit -Command `"$command`""
-        } else {
-            Start-Process wt.exe -ArgumentList "-w 0 nt -d `"$repoRoot`" --title `"EnergyTwin: $($app.Name)`" powershell -NoExit -Command `"$command`""
-        }
+        # Windows Terminal (wt.exe): -w 0 öffnet neue Tabs im bestehenden Fenster
+        Start-Process wt.exe -ArgumentList "-w", "0", "nt", "-d", $repoRoot, "--title", $title, "cmd", "/k", "dotnet run --project $proj"
     } else {
-        Start-Process powershell.exe -ArgumentList "-NoExit", "-Command", $command
+        # Fallback: Eigenständige Konsolenfenster via CMD (verhindert PowerShell ExecutionPolicy-Probleme)
+        Start-Process cmd.exe -WorkingDirectory $repoRoot -ArgumentList "/k", "title $title && dotnet run --project $proj"
     }
 
     Start-Sleep -Seconds $app.Delay
