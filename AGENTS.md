@@ -190,6 +190,7 @@ Im Verzeichnis `.agents/skills/` (sowie als Alias unter `skills/`) stehen 6 spez
 * **Zugehörige Dateien:**
   * `docs/development-journal/Alexander-Graf.md`
   * `docs/development-journal/Nikolas-Giesen.md`
+  * `docs/development-journal/Nazar-Burdeinyi.md`
 
 ---
 
