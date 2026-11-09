@@ -10,6 +10,7 @@
   <Project Path="ModbusRabbitMqGateway/ModbusRabbitMqGateway.csproj" />
   <Project Path="RabbitMqViewer/RabbitMqViewer.csproj" />
   <Project Path="TeamRabbitMQShared.Tests/TeamRabbitMQShared.Tests.csproj" />
+  <Project Path="Dual-Port-Charger.Tests/Dual-Port-Charger.Tests.csproj" />
   <Project Path="TeamConsoleShared/TeamConsoleShared.csproj" />
   <Project Path="WeatherSimulator/WeatherSimulator.csproj" />
 </Solution>
