@@ -13,6 +13,7 @@ Use this skill whenever an agent or developer documents development progress, co
 Journals are located in `docs/development-journal/`:
 * `docs/development-journal/Alexander-Graf.md`
 * `docs/development-journal/Nikolas-Giesen.md`
+* `docs/development-journal/Nazar-Burdeinyi.md`
 * *(Weitere Teammitglieder analog: `<Vorname>-<Nachname>.md`)*
 
 ## Tag-Vorgaben & Format

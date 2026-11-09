@@ -35,3 +35,4 @@ Hier finden Sie praxisorientierte Anleitungen zur Einrichtung und Bedienung des 
 Die individuellen Journale der Teammitglieder befinden sich im Unterordner [`docs/development-journal/`](file:///Users/alex/Github/dotnet-simulator-team-echo/docs/development-journal/):
 * [`Alexander-Graf.md`](file:///Users/alex/Github/dotnet-simulator-team-echo/docs/development-journal/Alexander-Graf.md)
 * [`Nikolas-Giesen.md`](file:///Users/alex/Github/dotnet-simulator-team-echo/docs/development-journal/Nikolas-Giesen.md)
+* [`Nazar-Burdeinyi.md`](file:///Users/alex/Github/dotnet-simulator-team-echo/docs/development-journal/Nazar-Burdeinyi.md)
