@@ -7,10 +7,12 @@ for %%I in ("%SCRIPT_DIR%..") do set "REPO_ROOT=%%~fI"
 
 rem Wenn PowerShell verfuegbar ist, interaktives PowerShell-Skript mit UI ausfuehren
 where powershell >nul 2>nul
-if %ERRORLEVEL% equ 0 (
+if not errorlevel 1 (
     powershell.exe -ExecutionPolicy Bypass -NoProfile -File "%SCRIPT_DIR%start-all.ps1" %*
-    exit /b %ERRORLEVEL%
+    exit /b !ERRORLEVEL!
 )
+
+chcp 65001 >nul
 
 echo ==============================================================================
 echo ⚡ Energy Twin 2026 - Windows Startup Script (Batch Fallback)

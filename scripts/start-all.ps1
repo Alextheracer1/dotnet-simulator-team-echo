@@ -1,18 +1,22 @@
-<#
+﻿<#
 .SYNOPSIS
     Energy Twin 2026 - Windows Startup Script (PowerShell)
 .DESCRIPTION
     Interaktive Auswahl und geordneter Start der Simulationskomponenten.
-    Unterstützt sowohl Windows Terminal (wt.exe) mit Tabs als auch separate PowerShell-Fenster.
+    Standardmäßig startet jede Komponente in einem eigenen separaten Konsolenfenster.
 #>
 
 [CmdletBinding()]
 param (
     [switch]$ForceSeparateWindows,
+    [switch]$UseTabs,
     [switch]$All
 )
 
 $ErrorActionPreference = "Stop"
+
+# UTF-8 Konsolen-Ausgabe sicherstellen
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $repoRoot = (Resolve-Path "$scriptDir\..").Path
@@ -25,15 +29,15 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
 }
 
 $apps = @(
-    [PSCustomObject]@{ Name = "Simulations-Master";   Path = "Simulations-Master\Simulations-Master.csproj";          Delay = 3; Color = "Green";     Desc = "TCP 1510 - Zentraler Taktgeber & Synchronisation"; Selected = $true },
-    [PSCustomObject]@{ Name = "Weather-Simulator";    Path = "WeatherSimulator\WeatherSimulator.csproj";            Delay = 2; Color = "Cyan";      Desc = "HTTP 5005 - Realdaten-Wetterdienst (CSV Salzburg)"; Selected = $true },
-    [PSCustomObject]@{ Name = "Dual-Port-Charger";    Path = "Dual-Port-Charger\Dual-Port-Charger.csproj";          Delay = 1; Color = "Magenta";   Desc = "Modbus 1502 - 2-Port DC-Schnellladestation"; Selected = $true },
-    [PSCustomObject]@{ Name = "Battery";              Path = "Battery\Battery.csproj";                              Delay = 1; Color = "Blue";      Desc = "Modbus 1503 - Großbatteriespeicher-Simulator"; Selected = $true },
-    [PSCustomObject]@{ Name = "PV-Simulator";         Path = "PV_Simulator\PV_Simulator\PV_Simulator.csproj";      Delay = 1; Color = "Yellow";    Desc = "Modbus 1504 - Photovoltaik-Simulator"; Selected = $true },
-    [PSCustomObject]@{ Name = "WindTurbine";          Path = "WindTurbine_Simulator\WindTurbine_Simulator.csproj"; Delay = 1; Color = "DarkCyan";  Desc = "Modbus 1505 - Windkraftanlage (Vestas V90)"; Selected = $true },
-    [PSCustomObject]@{ Name = "Modbus-Gateway";       Path = "ModbusRabbitMqGateway\ModbusRabbitMqGateway.csproj";  Delay = 1; Color = "DarkYellow";Desc = "Bridge Modbus Polling <-> RabbitMQ Telemetrie"; Selected = $true },
-    [PSCustomObject]@{ Name = "RabbitMQ-Viewer";      Path = "RabbitMqViewer\RabbitMqViewer.csproj";                Delay = 1; Color = "DarkGreen"; Desc = "Spectre.Console Live-Telemetrie-Dashboard"; Selected = $true },
-    [PSCustomObject]@{ Name = "Modbus-Diagnose";      Path = "ModbusDiagnoseClient\ModbusDiagnoseClient.csproj";    Delay = 0; Color = "White";     Desc = "Interaktives Modbus Lese-/Schreibwerkzeug"; Selected = $false }
+    [PSCustomObject]@{ Name = "Simulations-Master";   Path = "Simulations-Master\Simulations-Master.csproj";          Delay = 3; Color = "Green";     Desc = "TCP 1510 - Taktgeber & Synchronisation";     Selected = $true },
+    [PSCustomObject]@{ Name = "Weather-Simulator";    Path = "WeatherSimulator\WeatherSimulator.csproj";            Delay = 2; Color = "Cyan";      Desc = "HTTP 5005 - Realdaten-Wetterdienst";         Selected = $true },
+    [PSCustomObject]@{ Name = "Dual-Port-Charger";    Path = "Dual-Port-Charger\Dual-Port-Charger.csproj";          Delay = 1; Color = "Magenta";   Desc = "Modbus 1502 - 2-Port Schnellladestation";    Selected = $true },
+    [PSCustomObject]@{ Name = "Battery";              Path = "Battery\Battery.csproj";                              Delay = 1; Color = "Blue";      Desc = "Modbus 1503 - Grossbatteriespeicher";        Selected = $true },
+    [PSCustomObject]@{ Name = "PV-Simulator";         Path = "PV_Simulator\PV_Simulator\PV_Simulator.csproj";      Delay = 1; Color = "Yellow";    Desc = "Modbus 1504 - Photovoltaik-Simulator";       Selected = $true },
+    [PSCustomObject]@{ Name = "WindTurbine";          Path = "WindTurbine_Simulator\WindTurbine_Simulator.csproj"; Delay = 1; Color = "DarkCyan";  Desc = "Modbus 1505 - Windkraft (Vestas V90)";       Selected = $true },
+    [PSCustomObject]@{ Name = "Modbus-Gateway";       Path = "ModbusRabbitMqGateway\ModbusRabbitMqGateway.csproj";  Delay = 1; Color = "DarkYellow";Desc = "Bridge Modbus Polling <-> RabbitMQ";         Selected = $true },
+    [PSCustomObject]@{ Name = "RabbitMQ-Viewer";      Path = "RabbitMqViewer\RabbitMqViewer.csproj";                Delay = 1; Color = "DarkGreen"; Desc = "Spectre.Console Live-Dashboard";             Selected = $true },
+    [PSCustomObject]@{ Name = "Modbus-Diagnose";      Path = "ModbusDiagnoseClient\ModbusDiagnoseClient.csproj";    Delay = 0; Color = "White";     Desc = "Interaktives Modbus Test-Tool";              Selected = $false }
 )
 
 # Interaktives Menü (falls interaktive Konsole und nicht -All)
@@ -44,9 +48,9 @@ if ($isInteractive) {
         $cursor = 0
         $statusMsg = ""
         $firstDraw = $true
-        $totalLines = 6 + $apps.Count
+        $totalLines = 7 + $apps.Count
 
-        while ($true) {
+        :menuLoop while ($true) {
             if (-not $firstDraw) {
                 try {
                     $pos = $host.UI.RawUI.CursorPosition
@@ -61,10 +65,11 @@ if ($isInteractive) {
 
             $selectedCount = ($apps | Where-Object { $_.Selected }).Count
 
-            Write-Host ("=" * 78) -ForegroundColor Cyan
+            Write-Host ("=" * 76) -ForegroundColor Cyan
             Write-Host "⚡ Energy Twin 2026 - Modulauswahl" -ForegroundColor Cyan
-            Write-Host "↑/↓: Navigieren | Leertaste: Wählen | A: Alle | 1-9: Direktwahl | Enter/S: Starten" -ForegroundColor DarkGray
-            Write-Host ("=" * 78) -ForegroundColor Cyan
+            Write-Host "↑ / ↓ : Navigieren        |  LEERTASTE : Checkbox [X]/[ ] an- und abwählen" -ForegroundColor DarkGray
+            Write-Host "1 - 9 : Modul umschalten  |  A : Alle an-/abwählen  |  ENTER / S : Starten" -ForegroundColor DarkGray
+            Write-Host ("=" * 76) -ForegroundColor Cyan
 
             for ($i = 0; $i -lt $apps.Count; $i++) {
                 $app = $apps[$i]
@@ -73,7 +78,7 @@ if ($isInteractive) {
                 $check = if ($app.Selected) { "[X]" } else { "[ ]" }
                 $checkColor = if ($app.Selected) { "Green" } else { "DarkGray" }
                 $numStr = "$($i + 1). "
-                $nameFormatted = ($numStr + $app.Name).PadRight(26)
+                $nameFormatted = ($numStr + $app.Name).PadRight(22)
                 $nameColor = if ($isCurrent) { "Cyan" } else { "White" }
 
                 Write-Host $prefix -NoNewline -ForegroundColor Cyan
@@ -82,11 +87,11 @@ if ($isInteractive) {
                 Write-Host (" (" + $app.Desc + ")") -ForegroundColor DarkGray
             }
 
-            Write-Host ("-" * 78) -ForegroundColor DarkGray
+            Write-Host ("-" * 76) -ForegroundColor DarkGray
             if ($statusMsg) {
-                Write-Host $statusMsg -ForegroundColor Red
+                Write-Host $statusMsg.PadRight(76) -ForegroundColor Red
             } else {
-                Write-Host "Ausgewählt: $selectedCount von $($apps.Count) Projekten | 'Q': Abbrechen" -ForegroundColor White
+                Write-Host ("Ausgewählt: $selectedCount von $($apps.Count) | LEERTASTE: Umschalten | ENTER/S: Starten").PadRight(76) -ForegroundColor White
             }
 
             $key = [Console]::ReadKey($true)
@@ -113,12 +118,12 @@ if ($isInteractive) {
                     foreach ($app in $apps) { $app.Selected = $hasUnselected }
                 }
                 ([ConsoleKey]::Enter) {
-                    if ($selectedCount -gt 0) { break }
-                    $statusMsg = "⚠️ Keine Projekte ausgewählt! Bitte mindestens ein Projekt wählen."
+                    if ($selectedCount -gt 0) { break menuLoop }
+                    $statusMsg = "⚠️ Keine Projekte ausgewählt! Mindestens 1 Projekt wählen."
                 }
                 ([ConsoleKey]::S) {
-                    if ($selectedCount -gt 0) { break }
-                    $statusMsg = "⚠️ Keine Projekte ausgewählt! Bitte mindestens ein Projekt wählen."
+                    if ($selectedCount -gt 0) { break menuLoop }
+                    $statusMsg = "⚠️ Keine Projekte ausgewählt! Mindestens 1 Projekt wählen."
                 }
                 ([ConsoleKey]::Q) {
                     Write-Host "`n❌ Startvorgang durch Benutzer abgebrochen." -ForegroundColor Yellow
@@ -135,6 +140,15 @@ if ($isInteractive) {
                         if ($idx -lt $apps.Count) {
                             $apps[$idx].Selected = -not $apps[$idx].Selected
                         }
+                    } elseif ($char -eq 's' -or $char -eq 'S') {
+                        if ($selectedCount -gt 0) { break menuLoop }
+                        $statusMsg = "⚠️ Keine Projekte ausgewählt! Mindestens 1 Projekt wählen."
+                    } elseif ($char -eq 'q' -or $char -eq 'Q') {
+                        Write-Host "`n❌ Startvorgang durch Benutzer abgebrochen." -ForegroundColor Yellow
+                        exit 0
+                    } elseif ($char -eq 'a' -or $char -eq 'A') {
+                        $hasUnselected = ($apps | Where-Object { -not $_.Selected }).Count -gt 0
+                        foreach ($app in $apps) { $app.Selected = $hasUnselected }
                     }
                 }
             }
@@ -142,6 +156,7 @@ if ($isInteractive) {
     } finally {
         [Console]::CursorVisible = $true
     }
+    Write-Host ""
 }
 
 $appsToStart = @($apps | Where-Object { $_.Selected })
@@ -151,7 +166,7 @@ if ($appsToStart.Count -eq 0) {
 }
 
 Write-Host "`n==============================================================================" -ForegroundColor Cyan
-Write-Host "⚡ Starte $($appsToStart.Count) ausgewählte Komponenten..." -ForegroundColor Cyan
+Write-Host "⚡ Starte $($appsToStart.Count) ausgewählte Komponenten in separaten Fenstern..." -ForegroundColor Cyan
 Write-Host "📂 Arbeitsverzeichnis: $repoRoot" -ForegroundColor DarkGray
 Write-Host "==============================================================================" -ForegroundColor Cyan
 
@@ -166,7 +181,9 @@ if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
     Write-Host "⚠️ Hinweis: Docker CLI nicht im PATH gefunden. Bitte sicherstellen, dass RabbitMQ auf Port 5672 läuft." -ForegroundColor Yellow
 }
 
-$hasWt = (Get-Command wt.exe -ErrorAction SilentlyContinue) -and (-not $ForceSeparateWindows)
+# Standard: Jeder Simulator in eigenem Terminal-Fenster
+# Windows Terminal Tabs nur dann nutzen, wenn explizit -UseTabs angegeben ist
+$hasWt = $UseTabs -and (Get-Command wt.exe -ErrorAction SilentlyContinue) -and (-not $ForceSeparateWindows)
 
 Write-Host "`nStarte Simulationsmodule in geordneter Reihenfolge..." -ForegroundColor White
 
@@ -178,16 +195,17 @@ for ($i = 0; $i -lt $appsToStart.Count; $i++) {
 
     $projectFullPath = Join-Path $repoRoot $app.Path
     $title = "EnergyTwin: $($app.Name)"
-    $command = "Set-Location -LiteralPath '$repoRoot'; `$host.UI.RawUI.WindowTitle = '$title'; dotnet run --project '$projectFullPath'"
+    $command = "Set-Location -LiteralPath '$repoRoot'; try { `$host.UI.RawUI.WindowTitle = '$title' } catch {}; dotnet run --project '$projectFullPath'"
 
     $startedInWt = $false
     if ($hasWt) {
         try {
-            if ($i -eq 0) {
-                Start-Process wt.exe -ArgumentList @("-d", $repoRoot, "--title", $title, "powershell.exe", "-NoExit", "-Command", $command)
+            $wtArgs = if ($i -eq 0) {
+                "-d `"$repoRoot`" --title `"$title`" powershell.exe -NoExit -Command `"$command`""
             } else {
-                Start-Process wt.exe -ArgumentList @("-w", "0", "nt", "-d", $repoRoot, "--title", $title, "powershell.exe", "-NoExit", "-Command", $command)
+                "-w 0 nt -d `"$repoRoot`" --title `"$title`" powershell.exe -NoExit -Command `"$command`""
             }
+            Start-Process wt.exe -ArgumentList $wtArgs -ErrorAction Stop
             $startedInWt = $true
         } catch {
             Write-Warning "Windows Terminal konnte nicht gestartet werden, wechsle auf separates Fenster..."
@@ -205,10 +223,10 @@ for ($i = 0; $i -lt $appsToStart.Count; $i++) {
 }
 
 Write-Host "`n==============================================================================" -ForegroundColor Green
-Write-Host "✅ $($appsToStart.Count) Komponenten wurden erfolgreich gestartet!" -ForegroundColor Green
+Write-Host "✅ $($appsToStart.Count) Komponenten wurden in separaten Fenstern gestartet!" -ForegroundColor Green
 $hasMaster = ($appsToStart | Where-Object { $_.Name -eq "Simulations-Master" }).Count -gt 0
 if ($hasMaster) {
-    Write-Host "👉 Wechseln Sie in den Tab/das Fenster 'Simulations-Master' und drücken Sie 'S'," -ForegroundColor Yellow
+    Write-Host "👉 Wechseln Sie in das Fenster 'Simulations-Master' und drücken Sie 'S'," -ForegroundColor Yellow
     Write-Host "   um den virtuellen Zeittakt zu starten!" -ForegroundColor Yellow
 }
 Write-Host "==============================================================================" -ForegroundColor Green

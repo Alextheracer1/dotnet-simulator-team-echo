@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param (
     [switch]$ForceSeparateWindows,
+    [switch]$UseTabs,
     [switch]$All
 )
 
