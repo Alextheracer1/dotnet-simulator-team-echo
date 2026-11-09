@@ -54,7 +54,10 @@ public sealed class WeatherSimulationMasterClient : ITimeMasterClient
             {
                 attempt++;
                 await DisconnectAsync().ConfigureAwait(false);
-                Console.Error.WriteLine($"[Simulation Master] Verbindung {_host}:{_port}, Versuch {attempt} fehlgeschlagen: {exception.Message}");
+                if (Console.IsOutputRedirected)
+                {
+                    Console.Error.WriteLine($"[Simulation Master] Verbindung {_host}:{_port}, Versuch {attempt} fehlgeschlagen: {exception.Message}");
+                }
                 await Task.Delay(RetryDelay, cancellationToken).ConfigureAwait(false);
             }
         }

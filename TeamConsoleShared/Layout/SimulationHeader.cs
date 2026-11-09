@@ -34,8 +34,8 @@ public sealed class SimulationHeader
             }
         }
 
-        var isCompact = consoleWidth < 105;
-        var isVeryCompact = consoleWidth < 85;
+        var isCompact = consoleWidth < 125;
+        var isVeryCompact = consoleWidth < 95;
 
         var grid = new Grid().Expand();
         grid.AddColumn(new GridColumn().LeftAligned().NoWrap());
@@ -67,6 +67,8 @@ public sealed class SimulationHeader
                     subtitleText = "DC-Lader";
                 else if (subtitleText.Contains("Zeitsynchronisation", StringComparison.OrdinalIgnoreCase))
                     subtitleText = "Zentraler Taktgeber";
+                else if (subtitleText.Contains("Wetter", StringComparison.OrdinalIgnoreCase) || subtitleText.Contains("Weather", StringComparison.OrdinalIgnoreCase))
+                    subtitleText = "Wetter-Provider";
                 else if (subtitleText.StartsWith("Feldgerät: ", StringComparison.OrdinalIgnoreCase))
                     subtitleText = subtitleText["Feldgerät: ".Length..];
             }

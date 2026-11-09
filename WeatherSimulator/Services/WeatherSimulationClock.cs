@@ -24,6 +24,42 @@ public sealed class WeatherSimulationClock
         }
     }
 
+    public bool IsMasterConnected
+    {
+        get
+        {
+            lock (_sync)
+                return _isMasterConnected;
+        }
+    }
+
+    public DateTime? VirtualTime
+    {
+        get
+        {
+            lock (_sync)
+                return _hasVirtualTime ? _virtualTime : null;
+        }
+    }
+
+    public TimeSpan TimeStep
+    {
+        get
+        {
+            lock (_sync)
+                return _timeStep;
+        }
+    }
+
+    public bool IsRunning
+    {
+        get
+        {
+            lock (_sync)
+                return _isRunning;
+        }
+    }
+
     public void ApplyMasterMessage(SimulationMessage message)
     {
         if (message.Type is not (SimulationMessageTypes.Environment or SimulationMessageTypes.TimeStep))

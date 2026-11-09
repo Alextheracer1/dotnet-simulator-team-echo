@@ -85,3 +85,33 @@ Optionale Tags bei Relevanz:
 - **Artefact:** `TeamConsoleShared/SimulationTheme.cs`, `ModbusDiagnoseClient/DiagnoseClientProgram.cs`, `RabbitMqViewer/Program.cs`, `Simulations-Master/Program.cs`, `Battery/ConsoleUi/ConsoleDashboard.cs`, `PV_Simulator/PV_Simulator/ConsoleApp/ConsoleStatusRenderer.cs`, `WindTurbine_Simulator/ConsoleApp/ConsoleStatusRenderer.cs`.
 - **Test:** Erfolgreicher Clean-Build der gesamten Solution (`dotnet build dotNET_Programmierung_2026_Aufgabe_02.slnx -m:1`) mit 0 Fehlern; Start-Checks der Konsolenanwendungen zur Bestätigung einheitlicher Kopfzeilen, Metriken und Statusanzeigen.
 - **Comment:** Alle Simulatoren und Tools treten nun mit einem einheitlichen visuellen Erscheinungsbild auf, was die Bedienung und das Debugging im Team deutlich vereinfacht.
+
+## 2026-11-09 – WeatherSimulator: Integration des einheitlichen Konsolendesigns (TeamConsoleShared)
+
+### WeatherSimulator – Spectre.Console Live-Dashboard & Status-Harmonisierung
+- **Done:** Vollständige Integration des einheitlichen Konsolendesigns (`TeamConsoleShared`) in den `WeatherSimulator`:
+  - `TeamConsoleShared`: `SimulationTheme.WeatherAccent = Color.SkyBlue1` hinzugefügt und Subtitle-Handling in `SimulationHeader` für Wetter-Provider optimiert.
+  - `WeatherConsoleDashboard`: Neues Spectre.Console Live-Dashboard implementiert mit:
+    - Standardisiertem `SimulationHeader` (Port 5005, Sim-Zeit, Master-Takt, Status-Badges `[HTTP :5005]` und `[MASTER ONLINE/OFFLINE]`).
+    - Responsivem 2-Spalten-Layout (`MetricGrid`): Aktuelle Wetter- & Sonnendaten am Referenzstandort Salzburg (Temperatur, Bewölkungs-`GaugeBar`, Windgeschwindigkeit, Niederschlag, Azimut & Elevation mit Tag/Nacht-Indikator) sowie Dienst-Status & Zeitsynchronisation (Virtuelle Zeit, Master-Sync, CSV-Stützstellen, registrierte Feldgeräte, GET- & Push-Zähler).
+    - Status-Tabelle für registrierte Feldgeräte (`pv`, `wind`, Callback-URLs, Geodaten, letzter Push-Status und Zeitabstand).
+    - Ereignis- und Aktivitäts-Log-Panel für eingehende Requests, Registrierungen und Push-Benachrichtigungen.
+    - Keybinding-Leiste (`Q / X` zum Beenden, `R` für Aktualisierung).
+  - Resilientes Verbindungs- und Logging-Management:
+    - `WeatherActivityLogger`: Thread-sicherer Service zur Erfassung von Aktivitäten, HTTP-GET-Anfragen und Push-Events.
+    - Entkoppelung des Master-Verbindungsaufbaus (`WeatherSimulationMasterWorker` blockiert nicht mehr den WebHost-Start, sondern verbindet sich resilient im Hintergrund mit Reconnect-Schleife und Fallback-Uhr).
+    - Unterdrückung von ASP.NET Core Konsolen-Noise (`builder.Logging.ClearProviders()`), um flackerfreies Terminal-Rendering zu garantieren.
+- **KI:** Google Gemini 3.8 Flash (High) via Antigravity Assistant. Konzeptionierung des Live-Dashboards unter ASP.NET Core Kestrel, Implementierung der UI-Komponenten und thread-sicheren Schnittstellen in `TeamConsoleShared`.
+- **Artefact:** `TeamConsoleShared/SimulationTheme.cs`, `TeamConsoleShared/Layout/SimulationHeader.cs`, `WeatherSimulator/WeatherSimulator.csproj`, `WeatherSimulator/ConsoleUi/WeatherConsoleDashboard.cs`, `WeatherSimulator/Services/WeatherActivityLogger.cs`, `WeatherSimulator/Services/WeatherClientRegistry.cs`, `WeatherSimulator/Services/WeatherSnapshotPusher.cs`, `WeatherSimulator/Services/WeatherSimulationClock.cs`, `WeatherSimulator/Services/WeatherSimulationMasterWorker.cs`, `WeatherSimulator/Services/WeatherSimulationMasterClient.cs`, `WeatherSimulator/Program.cs`, `AGENTS.md`.
+- **Test:** Vollständiger Build der Solution (`dotnet build dotNET_Programmierung_2026_Aufgabe_02.slnx -m:1`) mit 0 Fehlern; Start des `WeatherSimulator` im Terminal, Überprüfung des Live-Renderings, der Responsive-Boxen und des sauberen Shutdowns bei `Q`/`Ctrl+C`.
+- **Comment:** Durch die Entkoppelung des Master-Verbindungsaufbaus vom HTTP-Start startet der WeatherSimulator nun verzögerungsfrei auch dann, wenn der Simulations-Master noch nicht läuft, und blendet transparent den aktuellen Verbindungsstatus ein.
+
+### WeatherSimulator – Behebung von Flackern, Textsprüngen & doppelten Elementen
+- **Done:** Terminal-Flicker und vertikales Scrollen im `WeatherSimulator` vollständig behoben:
+  - Layout-Höhe auf feste 14–17 Zeilen optimiert: Die Metrikwerte in den beiden Spalten wurden kompaktiert (keine mehrzeiligen Umbrüche mehr bei Zeitanzeigen oder Koordinaten), die Alert-Meldung gekürzt und die Detailtabelle dynamisch an die Terminalhöhe gekoppelt (`WindowHeight >= 32`). Dadurch bleibt der Frame immer deutlich unter der Standardterminalhöhe von 24 Zeilen.
+  - Flackerfreies In-Place-Rendering: Das periodische `Console.Clear()` auf jedem Sekundentakt wurde durch eine intelligente Zustandserkennung (`layoutKey`) ersetzt. Ein vollständiger Puffer-Clear wird nur noch exakt einmal bei strukturellen Layout-Änderungen (Start, Fenster-Resize, Wechsel des Master-Alert-Status) ausgeführt. Während der normalen Simulationsticks wird der Frame flackerfrei per `Console.SetCursorPosition(0, 0)` in-place überschrieben.
+  - Render-Loop harmonisiert: Die Aktualisierungsfrequenz läuft im 1-Sekunden-Takt mit 50 ms Tastenabfrage und Resize-Erkennung (analog zu `Simulations-Master`).
+- **KI:** Google Gemini 3.8 Flash (High) via Antigravity Assistant. Diagnose des Buffer-Overflows und Umbruchverhaltens in Spectre.Console, Implementierung der differenziellen Puffer-Clear-Logik zur Beseitigung von Sekundärflackern.
+- **Artefact:** `TeamConsoleShared/SimulationTheme.cs`, `TeamConsoleShared/Layout/SimulationDashboard.cs`, `TeamConsoleShared/Layout/SimulationHeader.cs`, `WeatherSimulator/ConsoleUi/WeatherConsoleDashboard.cs`, `WeatherSimulator/Program.cs`.
+- **Test:** Kompilierung und Verifikation des Dashboards; der Render-Frame bleibt stabil bei 17 Zeilen ohne Zeilenüberlauf, ohne vertikales Springen und ohne Sekundärflackern.
+- **Comment:** Ein ständiges `Console.Clear()` auf jedem Frame führt zu sichtbarem Flackern, da das Terminal für Millisekunden schwarz wird. Durch die Entkoppelung (Clear nur bei struktureller Höhenänderung, sonst sauberes In-Place-Overwrite) vereint die Lösung absolute Artefaktfreiheit mit flüssiger, ruhiger Terminaldarstellung.
