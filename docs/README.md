@@ -18,7 +18,7 @@ Hier finden Sie praxisorientierte Anleitungen zur Einrichtung und Bedienung des 
    * Architektur- und Komponentenübersicht (Master, Wetter, Feldgeräte, Gateway, Viewer).
    * Verbindliche 4-Phasen-Startreihenfolge.
    * Exakte Befehle und Tastatursteuerung für jedes Modul.
-   * Automatisiertes Multi-Terminal-Startskript ([`scripts/start-all.sh`](file:///Users/alex/Github/dotnet-simulator-team-echo/scripts/start-all.sh)).
+   * Automatisiertes Multi-Terminal-Startskript für Windows ([`scripts/start-all.bat`](file:///Users/alex/Github/dotnet-simulator-team-echo/scripts/start-all.bat), [`scripts/start-all.ps1`](file:///Users/alex/Github/dotnet-simulator-team-echo/scripts/start-all.ps1)) und macOS/Linux ([`scripts/start-all.sh`](file:///Users/alex/Github/dotnet-simulator-team-echo/scripts/start-all.sh)).
    * Port-, Register- und Troubleshooting-Matrix.
 
 ---

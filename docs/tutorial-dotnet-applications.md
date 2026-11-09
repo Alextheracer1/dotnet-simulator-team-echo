@@ -239,14 +239,35 @@ Sie können interaktiv wählen, welches Gerät angesprochen werden soll:
 
 ## 6. Komfort-Option: Automatisierter Start aller Komponenten
 
-Um nicht jedes Mal 8 Konsolenfenster von Hand zu öffnen, können Sie das bereitgestellte Startskript [`scripts/start-all.sh`](file:///Users/alex/Github/dotnet-simulator-team-echo/scripts/start-all.sh) verwenden:
+Um nicht jedes Mal 8 Konsolenfenster manuell öffnen zu müssen, stehen vorgefertigte Automatisierungsskripte für alle Betriebssysteme bereit:
 
-```bash
-chmod +x scripts/start-all.sh
-./scripts/start-all.sh
-```
+### A. Windows (Batch-Datei oder PowerShell)
 
-Auf **macOS** öffnet dieses Skript automatisch separate Tabs in der Terminal-App für jeden Simulator.
+* **Per Doppelklick oder Eingabeaufforderung (CMD):**
+  Führen Sie die Batch-Datei [`scripts/start-all.bat`](file:///Users/alex/Github/dotnet-simulator-team-echo/scripts/start-all.bat) aus:
+  ```cmd
+  scripts\start-all.bat
+  ```
+  *(Öffnet jedes Modul in einem separaten, betitelten Konsolenfenster)*
+
+* **Per PowerShell / Windows Terminal:**
+  Führen Sie das PowerShell-Skript [`scripts/start-all.ps1`](file:///Users/alex/Github/dotnet-simulator-team-echo/scripts/start-all.ps1) aus:
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\scripts\start-all.ps1
+  ```
+  *(Erkennt automatisch `wt.exe` und öffnet alle 8 Module als Tabs in einem gemeinsamen Windows Terminal-Fenster)*
+
+---
+
+### B. macOS / Linux (Bash)
+
+* **Per Bash-Skript:**
+  Führen Sie [`scripts/start-all.sh`](file:///Users/alex/Github/dotnet-simulator-team-echo/scripts/start-all.sh) aus:
+  ```bash
+  chmod +x scripts/start-all.sh
+  ./scripts/start-all.sh
+  ```
+  *(Öffnet auf macOS automatisch separate Tabs in der Apple Terminal-App)*
 
 ---
 
