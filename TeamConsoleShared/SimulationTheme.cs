@@ -15,6 +15,7 @@ public static class SimulationTheme
     public static readonly Color GatewayAccent = Color.Cyan1;
     public static readonly Color ViewerAccent = Color.DodgerBlue1;
     public static readonly Color DiagnoseAccent = Color.DarkOrange;
+    public static readonly Color WeatherAccent = Color.SkyBlue1;
 
     private static readonly object _renderLock = new();
     private static int _lastWidth = -1;
@@ -31,7 +32,7 @@ public static class SimulationTheme
             try
             {
                 Console.CursorVisible = false;
-                Console.Clear();
+                ResetConsole();
                 _lastWidth = Console.WindowWidth;
                 _lastHeight = Console.WindowHeight;
             }
@@ -43,10 +44,80 @@ public static class SimulationTheme
     }
 
     /// <summary>
-    /// Resets the cursor to (0, 0) for flicker-free in-place re-rendering.
-    /// Automatically clears the console screen buffer if a terminal resize is detected.
+    /// Completely clears the console screen and scrollback buffer, resets the cursor to (0, 0),
+    /// and resets the window scroll position on Windows to guarantee a 100% clean canvas.
     /// </summary>
-    public static void PrepareFrame()
+    public static void ResetConsole()
+    {
+        if (Console.IsOutputRedirected) return;
+
+        try
+        {
+            // \x1b[3J clears the entire scrollback history buffer in VT-compliant terminals
+            // \x1b[2J clears the visible screen
+            // \x1b[H moves cursor to row 1, col 1
+            Console.Write("\x1b[3J\x1b[2J\x1b[H");
+        }
+        catch
+        {
+            // Fallback for redirected or constrained console environments
+        }
+
+        try
+        {
+            AnsiConsole.Clear();
+        }
+        catch
+        {
+            try
+            {
+                Console.Clear();
+            }
+            catch
+            {
+                // Fallback for redirected or constrained console environments
+            }
+        }
+
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Console.SetWindowPosition(0, 0);
+            }
+            Console.SetCursorPosition(0, 0);
+        }
+        catch
+        {
+            // Fallback for redirected or constrained console environments
+        }
+    }
+
+    /// <summary>
+    /// Checks whether the console window dimensions have changed since the last frame.
+    /// </summary>
+    public static bool CheckResize()
+    {
+        if (Console.IsOutputRedirected) return false;
+
+        try
+        {
+            int currentWidth = Console.WindowWidth;
+            int currentHeight = Console.WindowHeight;
+
+            return _lastWidth != -1 && (currentWidth != _lastWidth || currentHeight != _lastHeight);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Resets the cursor to (0, 0) for flicker-free, clean in-place re-rendering.
+    /// Performs a full console reset if clearConsole is true or if a terminal resize is detected.
+    /// </summary>
+    public static void PrepareFrame(bool clearConsole = false)
     {
         if (!Console.IsOutputRedirected)
         {
@@ -57,9 +128,9 @@ public static class SimulationTheme
                     int currentWidth = Console.WindowWidth;
                     int currentHeight = Console.WindowHeight;
 
-                    if (_lastWidth == -1 || currentWidth != _lastWidth || currentHeight != _lastHeight)
+                    if (clearConsole || _lastWidth == -1 || currentWidth != _lastWidth || currentHeight != _lastHeight)
                     {
-                        Console.Clear();
+                        ResetConsole();
                         _lastWidth = currentWidth;
                         _lastHeight = currentHeight;
                     }

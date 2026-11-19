@@ -70,9 +70,23 @@ public sealed class SimulationDashboard
             .BorderStyle(new Style(foreground: borderColor ?? Color.Grey42))
             .Expand();
 
+        int consoleWidth = 120;
+        if (!Console.IsOutputRedirected)
+        {
+            try
+            {
+                consoleWidth = Console.WindowWidth;
+            }
+            catch
+            {
+                // Fallback to default
+            }
+        }
+
+        var colWidth = Math.Max(20, (consoleWidth - 2) / 2);
         var table = new Table().NoBorder().HideHeaders().Expand();
-        table.AddColumn(new TableColumn("Left"));
-        table.AddColumn(new TableColumn("Right"));
+        table.AddColumn(new TableColumn("Left") { Width = colWidth });
+        table.AddColumn(new TableColumn("Right") { Width = colWidth });
         table.AddRow(leftPanel, rightPanel);
 
         _sections.Add(table);
@@ -143,12 +157,63 @@ public sealed class SimulationDashboard
     }
 
     /// <summary>
-    /// Directly writes the dashboard to the console with frame lifecycle management.
+    /// Directly writes the dashboard to the console with frame lifecycle management,
+    /// window size validation, and vertical clipping to prevent terminal scrolling.
     /// </summary>
-    public void Render()
+    public void Render(bool clearConsole = false)
+    {
+        if (!Console.IsOutputRedirected)
+        {
+            try
+            {
+                int currentWidth = Console.WindowWidth;
+                int currentHeight = Console.WindowHeight;
+
+                // Minimum dimensions for readable dashboard layout
+                const int minWidth = 70;
+                const int minHeight = 14;
+
+                if (currentWidth < minWidth || currentHeight < minHeight)
+                {
+                    RenderSmallTerminalWarning(currentWidth, currentHeight, minWidth, minHeight);
+                    return;
+                }
+            }
+            catch
+            {
+                // Fallback for redirected or constrained console environments
+            }
+        }
+
+        SimulationTheme.PrepareFrame(clearConsole);
+
+        var maxLines = !Console.IsOutputRedirected
+            ? Math.Max(5, Console.WindowHeight - 1)
+            : int.MaxValue;
+
+        var renderable = new CroppedRenderable(Build(), maxLines);
+        AnsiConsole.Write(renderable);
+
+        SimulationTheme.EndFrame();
+    }
+
+    private static void RenderSmallTerminalWarning(int width, int height, int minWidth, int minHeight)
     {
         SimulationTheme.PrepareFrame();
-        AnsiConsole.Write(Build());
+
+        var warning = new Panel(new Markup(
+            $"[bold yellow]⚠️  Terminal zu klein[/]\n\n" +
+            $"[grey74]Aktuelle Größe:[/] [bold cyan]{width} x {height}[/]\n" +
+            $"[grey74]Mindestgröße:[/]   [bold green]{minWidth} x {minHeight}[/]\n\n" +
+            $"[grey62]Bitte vergrößern Sie das Konsolenfenster.[/]"))
+            .Border(BoxBorder.Rounded)
+            .BorderStyle(new Style(foreground: Color.Yellow))
+            .Header("[bold red] Energy Twin [/]")
+            .Expand();
+
+        var maxLines = Math.Max(3, height - 1);
+        AnsiConsole.Write(new CroppedRenderable(warning, maxLines));
+
         SimulationTheme.EndFrame();
     }
 }

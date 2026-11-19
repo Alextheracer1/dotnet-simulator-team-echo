@@ -172,8 +172,8 @@ class Program
                 {
                     "charger" => 300.0,
                     "battery" => 150.0,
-                    "pv" => 50.0,
-                    "wind" => 200.0,
+                    "pv" => 100.0,
+                    "wind" => 3000.0,
                     _ => Math.Max(100.0, powerKw * 1.2)
                 };
 
@@ -236,7 +236,8 @@ class Program
         layoutGrid.AddRow(keyBar);
 
         SimulationTheme.PrepareFrame();
-        AnsiConsole.Write(layoutGrid);
+        var maxLines = !Console.IsOutputRedirected ? Math.Max(5, Console.WindowHeight - 1) : int.MaxValue;
+        AnsiConsole.Write(new CroppedRenderable(layoutGrid, maxLines));
         SimulationTheme.EndFrame();
     }
 

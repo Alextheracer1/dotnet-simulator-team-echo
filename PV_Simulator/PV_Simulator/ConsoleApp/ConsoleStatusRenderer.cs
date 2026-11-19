@@ -16,15 +16,18 @@ public sealed class ConsoleStatusRenderer
         Location location,
         PvArray array,
         Inverter inverter,
-        SimulationSettings settings,
-        TimeSpan duration,
+        TimeSpan? duration,
         double speedMultiplier,
         int totalSteps,
-        string selectedWeatherControl)
+        string selectedWeatherControl,
+        TimeSpan masterTimeStep,
+        bool rabbitMqConnected = false,
+        long rabbitMqPublishedCount = 0)
     {
         if (Console.IsOutputRedirected || Console.IsErrorRedirected)
         {
-            var fallback = $"{snapshot.SimulatedAt:dd.MM.yyyy HH:mm} | Step {snapshot.StepNumber}/{totalSteps} | PV {snapshot.PowerKilowatts:F2} kW | {snapshot.InverterStatus} | Cloud {snapshot.Weather.CloudCoverFraction:P0}";
+            var stepsText = duration.HasValue ? $"{snapshot.StepNumber}/{totalSteps}" : $"{snapshot.StepNumber}";
+            var fallback = $"{snapshot.SimulatedAt:dd.MM.yyyy HH:mm} | Step {stepsText} | PV {snapshot.PowerKilowatts:F2} kW | {snapshot.InverterStatus} | Cloud {snapshot.Weather.CloudCoverFraction:P0}";
             Console.WriteLine(fallback);
             return;
         }
@@ -37,7 +40,7 @@ public sealed class ConsoleStatusRenderer
                 h.ModbusPort = 1504;
                 h.ModbusUnitId = 1;
                 h.SimulatedTime = snapshot.SimulatedAt.DateTime;
-                h.SpeedDescription = $"{speedMultiplier:0.##}x Tempo ({settings.TimeStep.TotalMinutes:0.#}m/Schritt)";
+                h.SpeedDescription = $"{speedMultiplier:0.##}x Tempo ({masterTimeStep:c}/Master-Schritt)";
                 h.ModeBadgeMarkup = StatusBadge.Mode(!snapshot.Weather.CloudCoverManuallyOverridden && !snapshot.Weather.TemperatureManuallyOverridden);
                 h.StatusBadgeMarkup = snapshot.ManualFaultActive || snapshot.InverterStatus == InverterStatus.Faulted
                     ? StatusBadge.Fault(snapshot.InverterStatus.ToString().ToUpperInvariant())
@@ -66,7 +69,8 @@ public sealed class ConsoleStatusRenderer
             MetricItem.Number("Sonneneinstrahlung", snapshot.IrradianceWattsPerSquareMeter, "W/m²", "bold gold1", "0", "☀️"),
             MetricItem.Number("PV-Nennleistung", array.ModuleNominalPowerKilowattsPeak, "kWp", "bold cyan", "0.0", "🔌"),
             MetricItem.Number("Wechselrichter max.", inverter.RatedPowerKilowatts, "kW", "bold cyan", "0.0", "🔋"),
-            MetricItem.Text("WR-Status", snapshot.InverterStatus.ToString(), snapshot.InverterStatus == InverterStatus.Running ? "bold green3" : (snapshot.InverterStatus == InverterStatus.Faulted ? "bold red" : "grey74"), "⚙️")
+            MetricItem.Text("WR-Status", snapshot.InverterStatus.ToString(), snapshot.InverterStatus == InverterStatus.Running ? "bold green3" : (snapshot.InverterStatus == InverterStatus.Faulted ? "bold red" : "grey74"), "⚙️"),
+            MetricItem.Text("RabbitMQ Telemetrie", rabbitMqConnected ? $"Verbunden ({rabbitMqPublishedCount} gesendet)" : "Broker Offline (Fallback aktiv)", rabbitMqConnected ? "bold chartreuse3" : "dim grey", "🐇")
         };
 
         // Section 2: Environment & Weather
@@ -77,7 +81,7 @@ public sealed class ConsoleStatusRenderer
             MetricItem.Text("Niederschlag", $"{snapshot.Weather.Precipitation}", "bold white", "🌧️"),
             MetricItem.Text("Modulzustand", snapshot.SnowCoverActive ? "Verschneit" : "Schneefrei", snapshot.SnowCoverActive ? "bold cyan" : "bold green3", "❄️"),
             MetricItem.Text("Aktive Steuerung", selectedWeatherControl, "bold yellow", "🎮"),
-            MetricItem.Text("Fortschritt", $"Schritt {snapshot.StepNumber} / {totalSteps} ({duration:hh\\:mm})", "bold white", "⏳")
+            MetricItem.Text("Fortschritt", duration.HasValue ? $"Schritt {snapshot.StepNumber} / {totalSteps} ({duration.Value:hh\\:mm})" : $"Schritt {snapshot.StepNumber} (unbegrenzt)", "bold white", "⏳")
         };
 
         dashboard.AddTwoColumns(
@@ -88,12 +92,12 @@ public sealed class ConsoleStatusRenderer
         dashboard.WithKeyBindings(
             ("C", "Wolken"),
             ("T", "Temperatur"),
-            ("+/-", "Wert/Tempo"),
+            ("+/-", "Wert / Master steuert Tempo"),
             ("A", "Automatik"),
             ("R", "Regen"),
             ("S", "Schnee"),
             ("F", "Fehler"),
-            ("P", "Pause")
+            ("P", "Pause via Master")
         );
 
         dashboard.Render();

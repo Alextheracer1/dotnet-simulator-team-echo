@@ -6,13 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Adjust HintPath to where you extracted the EasyModbus library -->
-    <Reference Include="EasyModbus">
-      <HintPath>..\EasyModbus.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="EasyModbusTCP.NETCore" Version="1.0.0" />
   </ItemGroup>
 </Project>

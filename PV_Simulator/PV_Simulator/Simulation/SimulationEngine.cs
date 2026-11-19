@@ -2,6 +2,7 @@ using System;
 using PV_Simulator.Calculations;
 using PV_Simulator.Domain;
 using PV_Simulator.Weather;
+using TeamShared.Weather;
 
 namespace PV_Simulator.Simulation;
 
@@ -15,12 +16,14 @@ public sealed class SimulationEngine
     private readonly SolarPositionCalculator _solarPositionCalculator;
     private readonly PvPowerCalculator _powerCalculator;
     private readonly Random _random;
+    private readonly object _stateLock = new();
     private DateOnly? _energyDate;
     private double _dailyEnergyKilowattHours;
     private bool _snowCoverActive;
     private TimeSpan _faultRemaining;
     private InverterStatus _inverterStatus = InverterStatus.Off;
     private bool _manualFaultActive;
+    private double? _powerLimitKw;
     private int _stepNumber;
 
     public SimulationEngine(
@@ -41,31 +44,60 @@ public sealed class SimulationEngine
         _powerCalculator = new PvPowerCalculator();
     }
 
-    public bool ToggleManualFault()
-        => SetManualFault(!_manualFaultActive);
-
-    public bool SetManualFault(bool active)
+    public double? PowerLimitKw
     {
-        _manualFaultActive = active;
-        if (active)
+        get { lock (_stateLock) return _powerLimitKw; }
+    }
+
+    public void SetPowerLimitKw(double? limitKw)
+    {
+        lock (_stateLock)
         {
-            _inverterStatus = InverterStatus.Faulted;
+            _powerLimitKw = limitKw;
         }
-        else
+    }
+
+    public void ResetFault()
+    {
+        lock (_stateLock)
         {
+            _manualFaultActive = false;
             _faultRemaining = TimeSpan.Zero;
             _inverterStatus = InverterStatus.Off;
         }
+    }
 
-        return _manualFaultActive;
+    public void TriggerFault()
+    {
+        lock (_stateLock)
+        {
+            _manualFaultActive = true;
+            _inverterStatus = InverterStatus.Faulted;
+        }
+    }
+
+    public bool ToggleManualFault()
+    {
+        lock (_stateLock)
+        {
+            _manualFaultActive = !_manualFaultActive;
+            if (_manualFaultActive)
+            {
+                _inverterStatus = InverterStatus.Faulted;
+            }
+            else
+            {
+                _faultRemaining = TimeSpan.Zero;
+                _inverterStatus = InverterStatus.Off;
+            }
+
+            return _manualFaultActive;
+        }
     }
 
     public bool ToggleSnowCover()
-        => SetSnowCover(!_snowCoverActive);
-
-    public bool SetSnowCover(bool active)
     {
-        _snowCoverActive = active;
+        _snowCoverActive = !_snowCoverActive;
         return _snowCoverActive;
     }
 
@@ -81,17 +113,17 @@ public sealed class SimulationEngine
 
     public SimulationSnapshot Advance(TimeSpan elapsed)
     {
-        if (elapsed < TimeSpan.Zero || elapsed >= _settings.Duration)
+        if (elapsed < TimeSpan.Zero || (_settings.Duration.HasValue && elapsed >= _settings.Duration.Value))
         {
             throw new ArgumentOutOfRangeException(nameof(elapsed));
         }
 
-        var timeStep = Min(_settings.TimeStep, _settings.Duration - elapsed);
+        var timeStep = _settings.Duration.HasValue ? Min(_settings.TimeStep, _settings.Duration.Value - elapsed) : _settings.TimeStep;
         var simulatedAt = _settings.StartTime + elapsed + timeStep;
-        return Advance(simulatedAt, timeStep);
+        return AdvanceTo(simulatedAt, timeStep);
     }
 
-    public SimulationSnapshot Advance(DateTimeOffset simulatedAt, TimeSpan timeStep)
+    public SimulationSnapshot AdvanceTo(DateTimeOffset simulatedAt, TimeSpan timeStep, WeatherSnapshotDto? externalWeather = null)
     {
         if (timeStep <= TimeSpan.Zero)
         {
@@ -106,29 +138,53 @@ public sealed class SimulationEngine
         }
 
         _stepNumber++;
-        var weather = _weatherEngine.Advance(simulatedAt, timeStep);
-        var solarPosition = _solarPositionCalculator.Calculate(_location, simulatedAt);
-        var irradiance = _powerCalculator.CalculatePlaneOfArrayIrradiance(solarPosition, _array, weather);
-        UpdateInverterStatus(timeStep, irradiance);
-        var power = _powerCalculator.CalculatePowerKilowatts(
-            _array,
-            _inverter,
-            weather,
-            irradiance,
-            _snowCoverActive,
-            _inverterStatus);
-        _dailyEnergyKilowattHours += power * timeStep.TotalHours;
 
-        return new SimulationSnapshot(
-            _stepNumber,
-            simulatedAt,
-            weather,
-            irradiance,
-            power,
-            _dailyEnergyKilowattHours,
-            _snowCoverActive,
-            _inverterStatus,
-            _manualFaultActive);
+        WeatherConditions weather;
+        SolarPosition solarPosition;
+
+        if (externalWeather != null)
+        {
+            var cloudFraction = Math.Clamp(externalWeather.CloudCoverPercent / 100.0, 0.0, 1.0);
+            var precipitation = externalWeather.PrecipitationMm > 0 ? Precipitation.Rain : Precipitation.None;
+            weather = new WeatherConditions(cloudFraction, externalWeather.TemperatureC, precipitation);
+            solarPosition = new SolarPosition(externalWeather.Elevation, externalWeather.Azimuth);
+        }
+        else
+        {
+            weather = _weatherEngine.Advance(simulatedAt, timeStep);
+            solarPosition = _solarPositionCalculator.Calculate(_location, simulatedAt);
+        }
+
+        lock (_stateLock)
+        {
+            var irradiance = _powerCalculator.CalculatePlaneOfArrayIrradiance(solarPosition, _array, weather);
+            UpdateInverterStatus(timeStep, irradiance);
+            var power = _powerCalculator.CalculatePowerKilowatts(
+                _array,
+                _inverter,
+                weather,
+                irradiance,
+                _snowCoverActive,
+                _inverterStatus);
+
+            if (_powerLimitKw.HasValue && _powerLimitKw.Value >= 0)
+            {
+                power = Math.Min(power, _powerLimitKw.Value);
+            }
+
+            _dailyEnergyKilowattHours += power * timeStep.TotalHours;
+
+            return new SimulationSnapshot(
+                _stepNumber,
+                simulatedAt,
+                weather,
+                irradiance,
+                power,
+                _dailyEnergyKilowattHours,
+                _snowCoverActive,
+                _inverterStatus,
+                _manualFaultActive);
+        }
     }
 
     private void UpdateInverterStatus(TimeSpan timeStep, double irradiance)

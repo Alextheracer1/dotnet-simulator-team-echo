@@ -19,7 +19,8 @@ public static class GaugeBar
         double maxKw,
         string unit = "kW",
         int barWidth = 24,
-        string? label = null)
+        string? label = null,
+        bool compact = false)
     {
         var safeMax = maxKw > 0 ? maxKw : 1.0;
         var ratio = Math.Clamp(currentKw / safeMax, 0.0, 1.0);
@@ -33,7 +34,13 @@ public static class GaugeBar
             _ => "green3"
         };
 
-        return RenderBar(ratio, barWidth, color, label, $"{currentKw,6:F1} / {maxKw:0.###} {unit}", $"{percent,3}%");
+        var valueText = compact
+            ? $"{currentKw:F1} {unit}"
+            : $"{currentKw,6:F1} / {maxKw:0.###} {unit}";
+
+        var labelText = compact ? null : label;
+
+        return RenderBar(ratio, barWidth, color, labelText, valueText, $"{percent,3}%");
     }
 
     /// <summary>

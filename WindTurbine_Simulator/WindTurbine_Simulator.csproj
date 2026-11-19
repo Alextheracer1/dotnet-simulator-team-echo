@@ -10,6 +10,7 @@
   <ItemGroup>
 	<ProjectReference Include="..\TeamConsoleShared\TeamConsoleShared.csproj" />
 	<ProjectReference Include="..\TeamShared\TeamShared.csproj" />
+	<ProjectReference Include="..\TeamRabbitMQShared\TeamRabbitMQShared.csproj" />
   </ItemGroup>
 
 </Project>

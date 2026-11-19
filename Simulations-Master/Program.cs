@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,6 +33,8 @@ public static class Program
 
         var serverTask = server.StartAsync(cancellationTokenSource.Token);
 
+        var lastRenderTime = Stopwatch.GetTimestamp();
+
         try
         {
             while (!cancellationTokenSource.IsCancellationRequested)
@@ -40,15 +43,28 @@ public static class Program
                     await serverTask.ConfigureAwait(false);
 
                 RenderDashboard(engine, server, port);
+                lastRenderTime = Stopwatch.GetTimestamp();
 
-                if (!Console.IsInputRedirected && Console.KeyAvailable)
+                while (!cancellationTokenSource.IsCancellationRequested)
                 {
-                    var key = Console.ReadKey(intercept: true);
-                    HandleKey(engine, key.Key, cancellationTokenSource);
-                }
-                else
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationTokenSource.Token).ConfigureAwait(false);
+                    if (!Console.IsInputRedirected && Console.KeyAvailable)
+                    {
+                        var key = Console.ReadKey(intercept: true);
+                        HandleKey(engine, key.Key, cancellationTokenSource);
+                        break;
+                    }
+
+                    if (SimulationTheme.CheckResize())
+                    {
+                        break; // Immediate redraw on console resize
+                    }
+
+                    if (Stopwatch.GetElapsedTime(lastRenderTime) >= TimeSpan.FromSeconds(1))
+                    {
+                        break;
+                    }
+
+                    await Task.Delay(50, cancellationTokenSource.Token).ConfigureAwait(false);
                 }
             }
         }
@@ -160,20 +176,23 @@ public static class Program
             dashboard.WithAlert("SIMULATION PAUSIERT: Virtueller Takt angehalten. Drücken Sie [R] oder [S] zum Fortsetzen.", "bold black on yellow");
         }
 
+        var isCompact = !Console.IsOutputRedirected && Console.WindowWidth < 95;
+        var timeFormat = isCompact ? "HH:mm:ss" : "yyyy-MM-dd HH:mm:ss";
+
         var statusMetrics = new List<MetricItem>
         {
-            MetricItem.Text("Virtuelle Zeit", snapshot.CurrentVirtualTime.ToString("yyyy-MM-dd HH:mm:ss.fff"), "bold gold1", "🕐"),
-            MetricItem.Text("Startzeit", snapshot.StartVirtualTime.ToString("yyyy-MM-dd HH:mm:ss"), "bold white", "🏁"),
-            MetricItem.Text("Takt-Schrittweite", FormatTimeStep(snapshot.TimeStep), "bold cyan", "⏱️"),
-            MetricItem.Text("Taktgeber-Zustand", snapshot.IsRunning ? "Läuft (Takt aktiv)" : "Angehalten (Pausiert)", snapshot.IsRunning ? "bold green3" : "bold yellow", "⚙️")
+            MetricItem.Text("Virt. Zeit", snapshot.CurrentVirtualTime.ToString(timeFormat), "bold gold1", "🕐"),
+            MetricItem.Text("Startzeit", snapshot.StartVirtualTime.ToString(timeFormat), "bold white", "🏁"),
+            MetricItem.Text("Schritt", FormatTimeStep(snapshot.TimeStep), "bold cyan", "⏱️"),
+            MetricItem.Text("Zustand", snapshot.IsRunning ? "Läuft (Aktiv)" : "Pausiert", snapshot.IsRunning ? "bold green3" : "bold yellow", "⚙️")
         };
 
         var networkMetrics = new List<MetricItem>
         {
-            MetricItem.Number("TCP Sync Server Port", port, "", "bold cyan", "0", "🔌"),
-            MetricItem.Number("Verbundene Simulatoren", server.ConnectedClientCount, "Knoten", server.ConnectedClientCount > 0 ? "bold green3" : "dim grey", "0", "🔗"),
-            MetricItem.Text("Stufen-Ladder", "1s, 10s, 1m, 15m, 1h, 2h, 12h, 24h, 7d", "grey74", "📊"),
-            MetricItem.Text("Protokoll-Modus", "TCP Text-Streams (TIME, STEP)", "dim grey", "📡")
+            MetricItem.Number("TCP Port", port, "", "bold cyan", "0", "🔌"),
+            MetricItem.Number("Clients", server.ConnectedClientCount, "Knoten", server.ConnectedClientCount > 0 ? "bold green3" : "dim grey", "0", "🔗"),
+            MetricItem.Text("Ladder", "1s, 10s, 1m, 1h..7d", "grey74", "📊"),
+            MetricItem.Text("Modus", "TCP Text-Streams", "dim grey", "📡")
         };
 
         dashboard.AddTwoColumns(

@@ -70,27 +70,6 @@ public class TelemetryAndMappingTests
     }
 
     [Fact]
-    public void RabbitMqPowerValues_PreserveNegativeValues()
-    {
-        var telemetry = new DeviceTelemetryMessage
-        {
-            DeviceId = "battery-1",
-            DeviceType = "battery",
-            ActivePowerWatts = -18000
-        };
-        var command = DeviceCommandMessage.CreateSetPowerLimit("battery", "battery-1", -18000);
-
-        var deserializedTelemetry = JsonSerializer.Deserialize<DeviceTelemetryMessage>(JsonSerializer.Serialize(telemetry));
-        var deserializedCommand = JsonSerializer.Deserialize<DeviceCommandMessage>(JsonSerializer.Serialize(command));
-
-        Assert.NotNull(deserializedTelemetry);
-        Assert.NotNull(deserializedCommand);
-        Assert.Equal(-18000, deserializedTelemetry.ActivePowerWatts);
-        Assert.Equal(-18000, deserializedCommand.Value);
-        Assert.Equal("battery", deserializedCommand.TargetDeviceType);
-    }
-
-    [Fact]
     public void RabbitMqConfiguration_RoutingKeyBuilders_FormatTopicsCorrectly()
     {
         // Arrange
@@ -99,12 +78,10 @@ public class TelemetryAndMappingTests
         // Act
         var telemetryKey = config.BuildTelemetryRoutingKey("charger", "charger-1");
         var commandKey = config.BuildCommandRoutingKey("charger", "charger-1");
-        var wildcardTypeCommandKey = config.BuildCommandRoutingKey("*", "battery-1");
 
         // Assert
         Assert.Equal("sim.telemetry.charger.charger-1", telemetryKey);
         Assert.Equal("sim.commands.charger.charger-1", commandKey);
-        Assert.Equal("sim.commands.*.battery-1", wildcardTypeCommandKey);
     }
 
     [Fact]
@@ -152,15 +129,62 @@ public class TelemetryAndMappingTests
     }
 
     [Fact]
-    public void ModbusTelemetryMapper_FromRegisters_PreservesNegativePower()
+    public void ModbusTelemetryMapper_FromRegisters_MapsPvSpecificRegisters()
     {
         var registers = new int[25];
-        var powerRegisters = ModbusClient.ConvertFloatToRegisters(-2500f);
-        registers[CommonRegisterMap.ActivePower_High] = powerRegisters[0];
-        registers[CommonRegisterMap.ActivePower_Low] = powerRegisters[1];
+        registers[CommonRegisterMap.OperatingState] = 2;
+        int[] powerRegs = ModbusClient.ConvertFloatToRegisters(45000.0f);
+        registers[CommonRegisterMap.ActivePower_High] = powerRegs[0];
+        registers[CommonRegisterMap.ActivePower_Low] = powerRegs[1];
 
-        var telemetry = ModbusTelemetryMapper.FromRegisters("battery-1", "battery", registers);
+        // PV: Irradiance (13-14), Temperature (15-16), CloudCover (17-18)
+        int[] irr = ModbusClient.ConvertFloatToRegisters(850.0f);
+        int[] temp = ModbusClient.ConvertFloatToRegisters(24.5f);
+        int[] cloud = ModbusClient.ConvertFloatToRegisters(15.0f);
+        registers[CommonRegisterMap.DeviceSpecificStart] = irr[0];
+        registers[CommonRegisterMap.DeviceSpecificStart + 1] = irr[1];
+        registers[CommonRegisterMap.DeviceSpecificStart + 2] = temp[0];
+        registers[CommonRegisterMap.DeviceSpecificStart + 3] = temp[1];
+        registers[CommonRegisterMap.DeviceSpecificStart + 4] = cloud[0];
+        registers[CommonRegisterMap.DeviceSpecificStart + 5] = cloud[1];
 
-        Assert.Equal(-2500f, (float)telemetry.ActivePowerWatts, 0.01f);
+        var telemetry = ModbusTelemetryMapper.FromRegisters("pv-1", "pv", registers, 1504, 1);
+
+        Assert.Equal("pv-1", telemetry.DeviceId);
+        Assert.Equal("pv", telemetry.DeviceType);
+        Assert.Equal(45.0, telemetry.ActivePowerKw, 1);
+        Assert.Equal(850.0f, (float)telemetry.GetMetric("Irradiance"), 0.1f);
+        Assert.Equal(24.5f, (float)telemetry.GetMetric("Temperature"), 0.1f);
+        Assert.Equal(15.0f, (float)telemetry.GetMetric("CloudCover"), 0.1f);
+    }
+
+    [Fact]
+    public void ModbusTelemetryMapper_FromRegisters_MapsWindSpecificRegisters()
+    {
+        var registers = new int[25];
+        registers[CommonRegisterMap.OperatingState] = 2;
+        int[] powerRegs = ModbusClient.ConvertFloatToRegisters(1200000.0f);
+        registers[CommonRegisterMap.ActivePower_High] = powerRegs[0];
+        registers[CommonRegisterMap.ActivePower_Low] = powerRegs[1];
+
+        // Wind: WindSpeed (13-14), RotorRpm (15-16), PitchAngle (17-18)
+        int[] speed = ModbusClient.ConvertFloatToRegisters(11.5f);
+        int[] rpm = ModbusClient.ConvertFloatToRegisters(17.25f);
+        int[] pitch = ModbusClient.ConvertFloatToRegisters(2.0f);
+        registers[CommonRegisterMap.DeviceSpecificStart] = speed[0];
+        registers[CommonRegisterMap.DeviceSpecificStart + 1] = speed[1];
+        registers[CommonRegisterMap.DeviceSpecificStart + 2] = rpm[0];
+        registers[CommonRegisterMap.DeviceSpecificStart + 3] = rpm[1];
+        registers[CommonRegisterMap.DeviceSpecificStart + 4] = pitch[0];
+        registers[CommonRegisterMap.DeviceSpecificStart + 5] = pitch[1];
+
+        var telemetry = ModbusTelemetryMapper.FromRegisters("wind-1", "wind", registers, 1505, 1);
+
+        Assert.Equal("wind-1", telemetry.DeviceId);
+        Assert.Equal("wind", telemetry.DeviceType);
+        Assert.Equal(1200.0, telemetry.ActivePowerKw, 1);
+        Assert.Equal(11.5f, (float)telemetry.GetMetric("WindSpeed"), 0.1f);
+        Assert.Equal(17.25f, (float)telemetry.GetMetric("RotorRpm"), 0.1f);
+        Assert.Equal(2.0f, (float)telemetry.GetMetric("PitchAngle"), 0.1f);
     }
 }

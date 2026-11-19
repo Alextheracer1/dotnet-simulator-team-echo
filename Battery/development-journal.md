@@ -154,3 +154,51 @@ GitHub Copilot als IDE-Agent zur Ursachenanalyse und Refaktorierung der asynchro
 `Battery/Simulation/BatterySimulator.cs`, `Battery/development-journal.md`, `PV_Simulator/PV_Simulator/Simulation/SimulationRunner.cs`.
 ### Test:
 Der vollständige Lösungsbuild war erfolgreich. Der direkte Aufruf des `TeamRabbitMQShared.Tests`-Harnesses mit `dotnet run --no-build` bestand mit 6/6 Tests; Visual Studio Test Explorer unterstützt das Projekt ohne Testadapter/Testhost nicht.
+
+## 2026-11-09 – RabbitMQ-Status im Battery-Dashboard
+
+### Done:
+- RabbitMQ-Verbindungsstatus und Anzahl erfolgreich publizierter Telemetrie-Nachrichten im Battery-Dashboard ergänzt, analog zur Dual-Port-Charger-Anzeige.
+### KI:
+GitHub Copilot als IDE-Agent zur Ergänzung der Statusanzeige und Aktualisierung des Journals genutzt; Änderungen werden durch Datei-Diagnostik und Projektbuild geprüft.
+### Artefact:
+`Battery/Simulation/BatterySimulator.cs`, `Battery/ConsoleUi/ConsoleDashboard.cs`, `Battery/development-journal.md`.
+### Test:
+`Battery/Battery.csproj` und `Dual-Port-Charger/Dual-Port-Charger.csproj` wurden erfolgreich erstellt; Datei-Diagnostik für alle geänderten C#-Dateien ist fehlerfrei.
+
+## 2026-11-09 – Master-Zeitabgleich nach Verbindungswiederherstellung
+
+### Done:
+- Lokale Battery-Zeit wird während fehlender Master-Verbindung weitergezählt und beim Wiederverbinden an die vom Master bestimmte Zeit angepasst.
+- Der Master sammelt für fünf Master-Ticks Zeitstempel zuvor registrierter Battery- und Charger-Stationen und übernimmt den exakten Median; bei gerader Anzahl gilt der Mittelwert ausschließlich der beiden mittleren Werte.
+- Battery und Dual-Port-Charger setzen bei `TimeReconciliation` ausschließlich ihre virtuelle Uhr zurück. Modellzustand und kumulierte Gerätewerte bleiben unverändert. PV-Dateien wurden nicht geändert und PV-Stationen sind von der Median-Reconciliation ausgeschlossen.
+### KI:
+GitHub Copilot als IDE-Agent zur Analyse und Implementierung des Reconnect-Protokolls sowie Aktualisierung der Dokumentation genutzt; Änderungen werden durch Builds der betroffenen Projekte und den vorhandenen Harness geprüft.
+### Artefact:
+`Battery/Simulation/BatterySimulator.cs`, `Battery/Simulation/SimulationMasterClient.cs`, `Dual-Port-Charger/SimulatorEngine.cs`, `Dual-Port-Charger/Program.cs`, `TeamShared/SimulationProtocol.cs`, `TeamShared/SimulationMasterClient.cs`, `TeamShared/SimulationMaster-Client-Protocol.md`, `Simulations-Master/TcpSimulationServer.cs`, `Simulations-Master/SimulationEngine.cs`.
+### Test:
+Der vollständige Lösungsbuild war erfolgreich; es verbleiben zwei vorhandene `MSB3245`-Warnungen zur nicht gefundenen `EasyModbus`-Assembly. Der `TeamRabbitMQShared.Tests`-Harness wurde mit 6/6 erfolgreichen Tests ausgeführt. Spezifische Reconnect-Protokoll-/Runtime-Tests sind nicht vorhanden.
+
+## 2026-11-09 – Master-Tick-Tempo im Battery-Dashboard
+
+### Done:
+- Die Tempoanzeige zeigt die vom Simulation Master gelieferte Schrittweite im Format `1 Tick = ...` und passt die Einheit dynamisch an Sekunden, Minuten, Stunden und Tage an.
+### KI:
+GitHub Copilot zur Analyse und Implementierung der Dashboard-Anpassung sowie zur Aktualisierung des Journals genutzt.
+### Artefact:
+`Battery/Simulation/BatterySimulator.cs`, `Battery/ConsoleUi/ConsoleDashboard.cs`, `TeamConsoleShared/SimulationTimeFormatter.cs`, `Battery/development-journal.md`.
+
+## 2026-11-09 – Master-Zeitschrittabgleich (TimeStepReconciliation) nach Verbindungswiederherstellung
+
+### Done:
+- Analog zum Zeitabgleich (`TimeReconciliation`) wurde ein Zeitschrittabgleich (`TimeStepReconciliation`) implementiert:
+  - Bei der Wiederregistrierung übermitteln Battery und Dual-Port-Charger ihre zuletzt bekannten Zeitschrittweiten (`TimeStep`).
+  - Der Simulations-Master sammelt diese Schrittweiten über fünf Ticks und ermittelt den exakten Median.
+  - Der Master setzt seine Simulations-Schrittweite auf den ermittelten Median und sendet `TimeStepReconciliation` an Battery und Dual-Port-Charger.
+  - Battery und Dual-Port-Charger passen ihre lokale Simulationsschrittweite an den reconcilierten Wert an, ohne das physische Modell zurückzusetzen.
+### KI:
+Google Gemini 3.8 Flash via Antigravity Assistant. Konzeptionierung basierend auf dem `TimeReconciliation`-Muster, Anpassung von Protokoll und Master/Client-Logik.
+### Artefact:
+`Battery/Simulation/BatterySimulator.cs`, `Battery/Simulation/SimulationMasterClient.cs`, `Dual-Port-Charger/SimulatorEngine.cs`, `TeamShared/SimulationProtocol.cs`, `TeamShared/SimulationMasterClient.cs`, `TeamShared/SimulationMaster-Client-Protocol.md`, `Simulations-Master/TcpSimulationServer.cs`, `Battery/development-journal.md`.
+### Test:
+Builds für `Battery`, `Dual-Port-Charger`, `Simulations-Master` und `TeamShared` via `dotnet build -m:1`; Ausführung aller Tests im Test-Harness.

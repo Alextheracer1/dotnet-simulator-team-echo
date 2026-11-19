@@ -1,0 +1,115 @@
+## 2026-10-26
+
+### WindTurbine Simulator – Dauer/Zeitschritt
+Done: WindTurbinen-Simulator auf PV-ähnliche Laufzeitlogik mit 24h-Default, freiem Zeitschritt, Tagesprofil+Rauschen und CSV-Ausgabe umgestellt.
+
+KI: Github Copilot GPT-6 Luna => Struktur und Ablauf für WindTurbine_Simulator gemäß neuen Parametern angepasst.
+
+Artefacts: WindTurbine_Simulator\Configuration\SimulationOptions.cs, WindTurbine_Simulator\Simulation\WindTurbineSimulationRunner.cs, WindTurbine_Simulator\ConsoleApp\ConsoleUi.cs, WindTurbine_Simulator\Program.cs, WindTurbine_Simulator\Simulation\CsvSimulationLogger.cs
+
+### WindTurbine Simulator – Laufzeitsteuerung
+Done: Zeitraffer im laufenden Betrieb mit +/- ergänzt und Pause/Fortsetzen auf P eingeführt.
+
+KI: Github Copilot GPT-6 Luna => Runtime-Steuerung analog PV-Simulator im Simulationsrunner umgesetzt.
+
+Artefacts: WindTurbine_Simulator\Simulation\WindTurbineSimulationRunner.cs, WindTurbine_Simulator\ConsoleApp\ConsoleUi.cs
+
+### TeamConsoleShared – Einheitlicher Ausgabestil
+Done: Gemeinsame Console-Rendering-Assembly eingeführt und PV/Wind auf kompakten Blockstil mit Leistungsbalken vereinheitlicht.
+
+KI: Github Copilot GPT-6 Luna => Shared Renderer erstellt und beide Simulatoren auf wiederverwendete Ausgabe umgestellt.
+
+Artefacts: TeamConsoleShared\ConsoleStatusBox.cs, TeamConsoleShared\PowerBarFormatter.cs, PV_Simulator\PV_Simulator\ConsoleApp\ConsoleStatusRenderer.cs, WindTurbine_Simulator\ConsoleApp\ConsoleStatusRenderer.cs, WindTurbine_Simulator\ConsoleApp\ConsoleUi.cs, WindTurbine_Simulator\Simulation\WindTurbineSimulationRunner.cs, WindTurbine_Simulator\Program.cs
+
+
+## 2026-10-29
+
+### WeatherSimulator – Grundgerüst, CSV-Parser, Sonnenstand & REST-API
+Done: WeatherSimulator als Minimal API auf Port 5005 mit CSV-In-Memory-Parser, Haversine-Standortwahl, Jahres-Wrapping, linearer Wetter-Interpolation und astronomischer Sonnenstandsberechnung implementiert.
+
+KI: Github Copilot GPT-6 Luna => WeatherSimulator-Architektur abstimmen, Minimal API Endpunkte, CSV-Parser und astronomischen Berechnungsservice umsetzen.
+
+Artefacts: WeatherSimulator\Program.cs, WeatherSimulator\Services\WeatherService.cs, WeatherSimulator\Services\IWeatherService.cs, WeatherSimulator\Services\SolarPositionCalculator.cs, WeatherSimulator\Services\ISolarPositionCalculator.cs, WeatherSimulator\Services\WeatherCsvParser.cs, WeatherSimulator\Services\IWeatherCsvParser.cs, WeatherSimulator\Models\WeatherRecord.cs, WeatherSimulator\Models\SolarPosition.cs, WeatherSimulator\Models\WeatherResponse.cs, WeatherSimulator\Models\WeatherDataset.cs, WeatherSimulator\WeatherSimulator.csproj
+
+## 2026-11-08
+
+### Simulation Master – Wind-/Weather-Anbindung
+Done: Windturbine verarbeitet Master-Zeitschritte mit ACK und Offline-Fallback; WeatherSimulator startet HTTP erst nach gültiger Masterzeit.
+
+KI: Github Copilot GPT-6 Luna => Master-Interface in Wind und Weather integriert und Fallback/Resynchronisierung ergänzt.
+
+Artefacts: WindTurbine_Simulator\Program.cs, WindTurbine_Simulator\Simulation\WindTurbineSimulationRunner.cs, WeatherSimulator\Services\WeatherSimulationMasterWorker.cs
+
+### Weather Push & Feldgeräte-Integration
+Done: Wetter-Push via HTTP POST vom WeatherSimulator an PV und Windrad integriert, dynamische Callback-Ports (6000+/6100+) implementiert, Master-ACK-Reihenfolge in PV korrigiert und Modellberechnungen auf zentrale Wetterdaten umgestellt.
+
+KI: Github Copilot GPT-6 Luna => Push-/Registrierungslogik im WeatherSimulator, dynamischen Callback-Empfänger in TeamShared sowie Anbindung in PV- und Windsimulatoren umsetzen.
+
+Artefacts: TeamShared\Weather\DeviceWeatherRegistration.cs, TeamShared\Weather\WeatherSnapshotDto.cs, TeamShared\Weather\WeatherCallbackReceiver.cs, WeatherSimulator\Services\WeatherClientRegistry.cs, WeatherSimulator\Services\WeatherSnapshotPusher.cs, WeatherSimulator\Services\WeatherSimulationMasterWorker.cs, WeatherSimulator\Program.cs, WindTurbine_Simulator\Configuration\SimulationOptions.cs, WindTurbine_Simulator\Simulation\WindTurbineSimulationRunner.cs, WindTurbine_Simulator\Program.cs, PV_Simulator\PV_Simulator\Simulation\SimulationEngine.cs, PV_Simulator\PV_Simulator\Simulation\SimulationRunner.cs, PV_Simulator\PV_Simulator\Program.cs, TeamRabbitMQShared.Tests\WeatherIntegrationTests.cs, TeamRabbitMQShared.Tests\Program.cs
+
+### PV Modbus-Server & RabbitMQ-Gateway Mapping (Weg A)
+Done: PV-Simulator mit Modbus-TCP-Server (Port 1504, LB02-Standard) ausgestattet und ModbusRabbitMqGateway sowie ModbusTelemetryMapper um gerätespezifische PV- und Wind-Metriken erweitert.
+
+KI: Github Copilot GPT-6 Luna => PvModbusService implementieren, ModbusTelemetryMapper für PV und Wind erweitern, GatewayConfiguration und RabbitMqViewer anpassen.
+
+Artefacts: PV_Simulator\PV_Simulator\Modbus\PvModbusService.cs, PV_Simulator\PV_Simulator\Simulation\SimulationRunner.cs, PV_Simulator\PV_Simulator\Program.cs, WindTurbine_Simulator\Configuration\SimulationOptions.cs, WindTurbine_Simulator\Modbus\WindTurbineModbusService.cs, TeamRabbitMQShared\Helpers\ModbusTelemetryMapper.cs, ModbusRabbitMqGateway\GatewayConfiguration.cs, RabbitMqViewer\Program.cs, TeamRabbitMQShared.Tests\TelemetryAndMappingTests.cs, TeamRabbitMQShared.Tests\Program.cs
+
+### Spectre.Console Markup-Escaping & Clean Build
+Done: Spectre.Console Markup-Tags [Modbus] und [Wetter] durch doppelte Klammern [[...]] maskiert und veraltete Assembly-Referenzen entfernt.
+
+KI: Github Copilot GPT-6 Luna => Spectre-Markup-Parserfehler in Wind- und PV-Simulatoren beheben und Projektdateien bereinigen.
+
+Artefacts: WindTurbine_Simulator\Program.cs, PV_Simulator\PV_Simulator\Program.cs, TeamShared\TeamShared.csproj, ModbusDiagnoseClient\ModbusDiagnoseClient.csproj
+
+### PV-Simulator – Unbegrenzte Laufzeit im Master-Betrieb
+Done: 24h-Begrenzung im PV-Simulator aufgehoben, Simulationsdauer optional (nullable) gestaltet und Simulationsschleife auf unbegrenzten Master-Betrieb umgestellt.
+
+KI: Github Copilot GPT-6 Luna => SimulationSettings, SimulationEngine, SimulationRunner und ConsoleStatusRenderer auf unbegrenzte Laufzeit analog Windrad anpassen.
+
+Artefacts: PV_Simulator\PV_Simulator\Domain\SimulationSettings.cs, PV_Simulator\PV_Simulator\Simulation\SimulationEngine.cs, PV_Simulator\PV_Simulator\Simulation\SimulationRunner.cs, PV_Simulator\PV_Simulator\ConsoleApp\ConsoleStatusRenderer.cs, PV_Simulator\PV_Simulator\ConsoleApp\ConsoleInput.cs, PV_Simulator\PV_Simulator\Program.cs
+
+### WindTurbine-Simulator – Standardmäßig unbegrenzte Laufzeit
+Done: Standard-Simulationsdauer im Windrad auf unbegrenzt (inf / null) gesetzt, um vorzeitigen Abbruch nach 24h im Master-Betrieb zu verhindern.
+
+KI: Github Copilot GPT-6 Luna => SimulationOptions und ConsoleUi Default-Duration auf unbegrenzt umstellen.
+
+Artefacts: WindTurbine_Simulator\Configuration\SimulationOptions.cs, WindTurbine_Simulator\ConsoleApp\ConsoleUi.cs
+
+## 2026-11-09 – Direkte RabbitMQ-Integration für PV und Windenergieanlage
+
+### PV & WindTurbine Simulator – Native RabbitMQ Publisher & Consumer Anbindung
+- **Done:** Direkte, brokerresiliente RabbitMQ-Anbindung für `PV_Simulator` und `WindTurbine_Simulator` analog zu `Dual-Port-Charger` und `Battery` implementiert. Beide Simulatoren publizieren bei jedem Simulationsschritt standardisierte Telemetriedaten (`DeviceTelemetryMessage`) auf den Exchange `sim.exchange` (`sim.telemetry.pv.pv-1` bzw. `sim.telemetry.wind.wind-1`) mit allen feldspezifischen Metriken (Einstrahlung, Temperatur, Bewölkung bzw. Windgeschwindigkeit, Rotor-RPM, Pitch-Winkel). Zudem abonnieren beide Simulatoren Steuerbefehle (`sim.commands.pv.#`, `sim.commands.wind.#`) zur Fernsteuerung von Leistungslimits (`SetPowerLimit`/`Setpoint`) sowie Fehler-Auslösung/Reset (`TriggerFault`/`ResetFault`). Der Verbindungs- und Sendestatus wird im Spectre.Console-Dashboard visualisiert.
+- **KI:** Google Gemini 3.8 Flash (High) => Analyse der bisherigen Gateway- vs. Direkt-Architektur im Vergleich mit Dual-Port-Charger/Battery, Implementierung von Publisher/Consumer in Simulationsrunnern und Engine sowie UI-Dashboard-Integration.
+- **Artefact:** `PV_Simulator/PV_Simulator/Simulation/SimulationRunner.cs`, `PV_Simulator/PV_Simulator/Simulation/SimulationEngine.cs`, `PV_Simulator/PV_Simulator/ConsoleApp/ConsoleStatusRenderer.cs`, `PV_Simulator/PV_Simulator/Program.cs`, `WindTurbine_Simulator/WindTurbine_Simulator.csproj`, `WindTurbine_Simulator/Simulation/WindTurbineSimulationRunner.cs`, `WindTurbine_Simulator/ConsoleApp/ConsoleStatusRenderer.cs`, `WindTurbine_Simulator/Program.cs`
+- **Test:** Vollständiger Solution-Build via `dotnet build dotNET_Programmierung_2026_Aufgabe_02.slnx -m:1` (0 Fehler, 0 Warnungen) und Ausführung aller 9/9 Tests in `TeamRabbitMQShared.Tests` (PASSED).
+- **Comment:** Zuvor sendeten PV und Wind nur über das optionale `ModbusRabbitMqGateway` Telemetriedaten an RabbitMQ. Durch die native Integration arbeiten alle vier Feldgeräte (Charger, Battery, PV, Wind) nun nach dem gleichen einheitlichen Muster und können sowohl autark via RabbitMQ als auch parallel via Modbus TCP betrieben werden. Der WeatherSimulator bleibt rein HTTP-basiert (REST/Push-Callbacks).
+
+### Windows Startup-Skripte – Syntax- und Pfad-Korrektur (Batch & PowerShell)
+- **Done:** Die Startskripte `scripts/start-all.bat` und `scripts/start-all.ps1` für Windows vollständig repariert. In der Batch-Datei führten ungeklammerte Klammern `(dotnet)` im `if`-Block zu einem Syntaxfehler (`"wurde" kann syntaktisch an dieser Stelle nicht verarbeitet werden`), während in PowerShell ein unvollständig geschlossenes Stringliteral vorlag (`TerminatorExpectedAtEndOfString`). Beide Skripte wurden auf saubere Pfadbehandlung für Verzeichnisse mit Leerzeichen (`5. Semester`, `.NET`), `docker-compose`/`docker compose`-Fallback und sichere Fenster-Starts aktualisiert und zusätzlich als Schnellstarter im Root-Verzeichnis bereitgestellt.
+- **KI:** Google Gemini 3.8 Flash (High) => Parserfehler identifiziert, Windows-CRLF/ASCII-Kodierung und Argumentlisten bereinigt.
+- **Artefact:** `scripts/start-all.bat`, `scripts/start-all.ps1`, `start-all.bat`, `start-all.ps1`
+- **Test:** PowerShell-Syntax-Validierung via AST Parser (`PS1 SYNTAX PERFECT`) und CMD-Batchlauf erfolgreich geprüft.
+
+### Modbus-RabbitMQ Gateway – Behebung astronomischer Float-Werte (Register-Offset Korrektur)
+- **Done:** Kritischen Adressierungs-Versatz im Modbus-RabbitMQ Gateway behoben. Die EasyModbus Client-Bibliothek adressiert Holding Register mit 0-basiertem Protokoll-Offset (Adresse `0` entspricht Holding Register `1`). Durch die Übergabe von `1` bei `ReadHoldingRegisters(1, count)` wurden alle Register um 1 verschoben ausgelesen. Dies führte dazu, dass 32-Bit IEEE 754 Floats (z. B. Wirkleistung und Energie) aus zwei halben Worten zweier benachbarter Register zusammengesetzt wurden und astronomische Fantasiewerte wie `-2.7e+29` oder `5.01e+33` ergaben. Die Adressierung in `ModbusDeviceBridge` wurde auf `0` korrigiert und das Schreiben von Sollwerten und Fehler-Resets in `ModbusTelemetryMapper` ebenfalls auf 0-basierte Adressen angepasst. Zudem wurde `ActivePowerKW` in `BatteryModbusService` mit `1000d` multipliziert, um dem LB02-Standard (Float32 in Watt) zu entsprechen.
+- **KI:** Google Gemini 3.8 Flash (High) => Analyse der fehlerhaften Telemetrieanzeige aus dem Screenshot, Identifikation des EasyModbus 0-basierten Protokolloffsets in `ModbusDeviceBridge.cs` und Anpassung des Mappers.
+- **Artefact:** `ModbusRabbitMqGateway/ModbusDeviceBridge.cs`, `TeamRabbitMQShared/Helpers/ModbusTelemetryMapper.cs`, `Battery/Simulation/BatteryModbusService.cs`
+- **Test:** Alle 9/9 Tests in `TeamRabbitMQShared.Tests` (inkl. `ModbusTelemetryMapper_FromRegisters`) erfolgreich ausgeführt.
+
+### PV- & WindTurbine-Simulator – Deaktivierung der CSV-Dateierstellung
+- **Done:** Die automatische Generierung und Ablage von CSV-Exportdateien in `PV_Simulator` und `WindTurbine_Simulator` deaktiviert. Im `PV_Simulator` wurde der `SimulationRunner` dahingehend angepasst, dass der `CsvSimulationLogger` optional (`null`) übergeben werden kann und Schreibaufrufe übersprungen werden. Im `WindTurbine_Simulator` wurde die Instanziierung des `CsvSimulationLogger` sowie der Schreibzyklus aus der Schleife entfernt und `ConsoleUi.PrintStart` auf `[grey62]CSV-Protokoll:[/] [dim grey]Deaktiviert[/]` aktualisiert.
+- **KI:** Google Gemini 3.8 Flash (High) => Identifikation der Initialisierungslogik in beiden Simulatoren, Umstellung auf Nullable-Logger-Pattern und Bereinigung der Konsolenmeldungen.
+- **Artefact:** `PV_Simulator/PV_Simulator/Simulation/SimulationRunner.cs`, `PV_Simulator/PV_Simulator/Program.cs`, `WindTurbine_Simulator/ConsoleApp/ConsoleUi.cs`, `WindTurbine_Simulator/Program.cs`
+- **Test:** Kompilierung von `PV_Simulator` und `WindTurbine_Simulator` via `dotnet build -m:1 --no-dependencies` (0 Warnungen, 0 Fehler).
+- **Comment:** Die CSV-Dateien wurden bei jedem Start im Ordner `exports/` neu angelegt und verbrauchten unnötig Speicherplatz während der Live-Entwicklung und Telemetrieübertragung. Die `CsvSimulationLogger`-Klassen bleiben für optionale spätere Nutzung erhalten.
+
+### Windows Startup-Skripte – Behebung von UTF-8 BOM Parsing- & TUI Loop-Fehlern im Auswahlsystem
+- **Done:** Kritische Fehler im neu hinzugefügten interaktiven Auswahlsystem der Windows-Startskripte (`scripts/start-all.ps1`, `scripts/start-all.bat`) behoben, während die volle Modulauswahl-Funktionalität erhalten bleibt:
+  - **UTF-8 Byte Order Mark (BOM):** `scripts/start-all.ps1` wurde mit UTF-8 BOM neu gespeichert. Unter Windows PowerShell 5.1 führten UTF-8 Multibyte-Zeichen (wie Pfeile `↑` mit Byte 0x91) in dateien ohne BOM dazu, dass PowerShell sie als typographische Anführungszeichen (`‘` in Windows-1252) interpretierte, was zu 10 Parser-Syntaxfehlern (`ExpectedValueExpression`, `UnexpectedToken`, `MissingEndCurlyBrace`) führte.
+  - **PowerShell `switch` Loop-Break:** In PowerShell beendet ein ungelabeltes `break` innerhalb eines `switch`-Blocks lediglich die `switch`-Verzweigung, nicht aber die umschließende `while ($true)`-Schleife. Dadurch war das Menü bei `Enter` und `S` in einer Endlosschleife gefangen und startete die ausgewählten Projekte nie. Die Schleife wurde mit `:menuLoop` gelabelt und `break menuLoop` implementiert.
+  - **Zeilenüberlauf & Flackerfreie Darstellung:** Textbreiten und Beschreibungen auf maximal 76 Zeichen formatiert, sodass auf Standard-80-Zeichen-Konsolen kein unabsichtlicher Zeilenumbruch mehr entsteht und der Cursor-Offset `$totalLines` exakt erhalten bleibt.
+  - **Robuste Prozess-Starts & Separate Fenster als Standard:** Windows Terminal (`wt.exe`) Tabs erzeugten durch die interne Semikolon-Befehlstrennung den Startfehler `0x80070002` (`dotnet run` wurde fälschlich als eigenes Programm interpretiert). Das Startverhalten wurde standardmäßig auf **eigenständige Konsolenfenster pro Simulator** umgestellt (`Start-Process powershell.exe`), sodass jeder Simulator in einem eigenen Terminalfenster mit eigenem Fenstertitel läuft und frei am Bildschirm angeordnet werden kann (Tabs können optional via `-UseTabs` aktiviert werden).
+  - **TUI-Bedienungsführung:** Die Menü-Anzeige wurde mit eindeutigen Hinweisen versehen, sodass klar erkennbar ist, dass `LEERTASTE` bzw. Ziffern `1-9` einzelne Checkboxen umschalten und `ENTER` / `S` den Startvorgang für alle gewählten Module auslöst.
+- **KI:** Google Gemini 3.8 Flash (High) => Identifikation des CP1252 Smart-Quote Byte-Kollisionsfehlers in Windows PowerShell 5.1, Analyse des PowerShell Switch/Break-Verhaltens, Behebung des `wt.exe`-Subcommand-Splittings durch Umstellung auf native separate PowerShell-Fenster und Optimierung der TUI-Hinweise.
+- **Artefact:** `scripts/start-all.ps1`, `scripts/start-all.bat`, `start-all.ps1`, `docs/development-journal/Nikolas-Giesen.md`
+- **Test:** Syntax-Validierung via PowerShell AST-Parser (0 Fehler), Batch-Start via `cmd.exe /c "start-all.bat -?"` erfolgreich, Prozess-Spawn-Tests für separate PowerShell-Fenster und TUI-Selektions-Logik validiert.

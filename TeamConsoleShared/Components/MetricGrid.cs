@@ -21,7 +21,7 @@ public static class MetricGrid
 
         if (columns <= 1)
         {
-            table.AddColumn(new TableColumn("Label").PadRight(2));
+            table.AddColumn(new TableColumn("Label").NoWrap().PadRight(1));
             table.AddColumn(new TableColumn("Value").PadLeft(1));
 
             foreach (var item in itemList)

@@ -18,7 +18,7 @@ public sealed class ConsoleUi
         AnsiConsole.Markup("[bold cyan]Standardwerte für Physik und Zeit verwenden (j/n)?[/] [grey][[j]]: [/]");
         var input = Console.ReadLine()?.Trim().ToLower();
 
-        TimeSpan? duration = TimeSpan.FromHours(24);
+        TimeSpan? duration = null;
         TimeSpan stepInterval = TimeSpan.FromSeconds(300);
         double ratedPower = 3000.0;
         double rotorArea = 8000.0;
@@ -50,9 +50,16 @@ public sealed class ConsoleUi
         };
     }
 
-    public void PrintStart(SimulationOptions options, string csvPath)
+    public void PrintStart(SimulationOptions options, string? csvPath = null)
     {
-        AnsiConsole.MarkupLine($"[grey62]CSV-Protokoll:[/] [cyan]{Markup.Escape(csvPath)}[/]");
+        if (!string.IsNullOrWhiteSpace(csvPath))
+        {
+            AnsiConsole.MarkupLine($"[grey62]CSV-Protokoll:[/] [cyan]{Markup.Escape(csvPath)}[/]");
+        }
+        else
+        {
+            AnsiConsole.MarkupLine("[grey62]CSV-Protokoll:[/] [dim grey]Deaktiviert[/]");
+        }
         AnsiConsole.MarkupLine(options.Duration.HasValue
             ? $"[green]Simulation startet[/] ([grey]{options.Duration.Value.TotalHours:0.##} h, Schritt {options.StepInterval.TotalSeconds:0.##} s, Zeitraffer x{options.SpeedMultiplier:0.##}[/])."
             : $"[green]Simulation startet[/] ([grey]unbegrenzt, Schritt {options.StepInterval.TotalSeconds:0.##} s, Zeitraffer x{options.SpeedMultiplier:0.##}[/]).");
@@ -68,15 +75,10 @@ public sealed class ConsoleUi
     {
         while (true)
         {
-            AnsiConsole.Markup("[bold grey85]Simulationsdauer in Stunden [grey][[24]][/] oder 'inf' für unbegrenzt: [/]");
+            AnsiConsole.Markup("[bold grey85]Simulationsdauer in Stunden oder 'inf' für unbegrenzt [grey][[inf]][/]: [/]");
             var input = Console.ReadLine()?.Trim();
 
-            if (string.IsNullOrWhiteSpace(input))
-            {
-                return TimeSpan.FromHours(24);
-            }
-
-            if (string.Equals(input, "inf", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(input) || string.Equals(input, "inf", StringComparison.OrdinalIgnoreCase))
             {
                 return null;
             }
