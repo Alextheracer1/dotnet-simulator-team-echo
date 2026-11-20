@@ -202,3 +202,23 @@ Google Gemini 3.8 Flash via Antigravity Assistant. Konzeptionierung basierend au
 `Battery/Simulation/BatterySimulator.cs`, `Battery/Simulation/SimulationMasterClient.cs`, `Dual-Port-Charger/SimulatorEngine.cs`, `TeamShared/SimulationProtocol.cs`, `TeamShared/SimulationMasterClient.cs`, `TeamShared/SimulationMaster-Client-Protocol.md`, `Simulations-Master/TcpSimulationServer.cs`, `Battery/development-journal.md`.
 ### Test:
 Builds für `Battery`, `Dual-Port-Charger`, `Simulations-Master` und `TeamShared` via `dotnet build -m:1`; Ausführung aller Tests im Test-Harness.
+
+## 2026-11-20 – Erstellung aussagekräftiger xUnit-Tests für Battery und Simulation Master
+
+### Done:
+- Erstellung der dedizierten Test-Suite `Battery.Tests`:
+  - `BatteryModelTests.cs`: Validierung von Konstruktor-Grenzwerten, Lade- und Entladephysik, Leistungs-Clamping an Hardware-Grenzen, 80%-SoC-Tapering-Kurve, Top-Off-Schwellenwert (99,9%), Verhinderung von Überladung/Tiefentladung, Fehler-Injektion (`InjectFault`) und Fehler-Reset (`ResetFault`).
+  - `AutoScenarioTests.cs`: Prüfung der zeitabhängigen Ladeleistung (Off-Peak vs. Solarfenster), 60-Minuten-Rampen-Interpolation, Fahrzeug-Konnektivitätsfenster (18:00–01:00) und dynamische Geräteprofil-Auswahl (Hochlast- vs. Schwachlastphasen).
+  - `SimulationHistoryTests.cs`: Validierung der FIFO-Gleitfenstergrenze (`RollingReadingLimit = 96`), Berechnung rollierender Durchschnitte (Min/Max/Avg) sowie Tages-Aggregationen.
+- Erstellung der dedizierten Test-Suite `Simulations-Master.Tests`:
+  - `SimulationEngineTests.cs`: Zustandsübergänge (Start, Pause, Resume), Zeitschritt-Konfiguration (`ChangeTimeStep`), Validierung nicht-unterstützter Restarts, Bestimmung der nächsten Zeitschritt-Intervalle (`GetNearestTimeStep`), Commit-Validierung des Zeitschritts (`CommitTimeStep`) und Master-Uhr-Reconciliation (`ReconcileFromStation`).
+  - `TcpSimulationServerTests.cs`: Automatisierte Netzwerk- und Protokolltests für den TCP-Master: Environment-Broadcasting bei Verbindung, Beantwortung von `EnvironmentRequest`, Station-Registrierung (`Register`), Fehlerbehandlung bei ungültigem JSON (`Error`-Antwort) und Zeitschritt-Barrieren-Synchronisation (`TimeStep` Broadcast mit Client `Acknowledgement` und Weiterführung der virtuellen Zeit).
+- Einbindung beider Testprojekte in die Hauptlösung `dotNET_Programmierung_2026_Aufgabe_02.slnx`.
+### KI:
+Google Gemini 3.8 Flash via Antigravity Assistant zur Konzeptionierung, Generierung und Verifikation der xUnit-Testsuiten unter strikter Einhaltung der xUnit- und Spectre/Console-Runner-Standards des Repositories.
+### Artefact:
+`Battery.Tests/Battery.Tests.csproj`, `Battery.Tests/BatteryModelTests.cs`, `Battery.Tests/AutoScenarioTests.cs`, `Battery.Tests/SimulationHistoryTests.cs`, `Battery.Tests/Program.cs`, `Simulations-Master.Tests/Simulations-Master.Tests.csproj`, `Simulations-Master.Tests/SimulationEngineTests.cs`, `Simulations-Master.Tests/TcpSimulationServerTests.cs`, `Simulations-Master.Tests/Program.cs`, `dotNET_Programmierung_2026_Aufgabe_02.slnx`, `docs/development-journal/Nazar-Burdeinyi.md`.
+### Test:
+- `Battery.Tests`: 34/34 Tests erfolgreich bestanden (`dotnet run --project Battery.Tests/Battery.Tests.csproj --no-build`).
+- `Simulations-Master.Tests`: 19/19 Tests erfolgreich bestanden (`dotnet run --project Simulations-Master.Tests/Simulations-Master.Tests.csproj --no-build`).
+- Gesamter Lösungsbuild (`dotnet build dotNET_Programmierung_2026_Aufgabe_02.slnx -m:1`) erfolgreich ohne Compilerfehler.
