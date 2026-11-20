@@ -222,3 +222,23 @@ Google Gemini 3.8 Flash via Antigravity Assistant zur Konzeptionierung, Generier
 - `Battery.Tests`: 34/34 Tests erfolgreich bestanden (`dotnet run --project Battery.Tests/Battery.Tests.csproj --no-build`).
 - `Simulations-Master.Tests`: 19/19 Tests erfolgreich bestanden (`dotnet run --project Simulations-Master.Tests/Simulations-Master.Tests.csproj --no-build`).
 - Gesamter Lösungsbuild (`dotnet build dotNET_Programmierung_2026_Aufgabe_02.slnx -m:1`) erfolgreich ohne Compilerfehler.
+
+## 2026-11-20 – Automatisierter Integrationstest für das Server-/Client-Zusammenspiel
+
+### Done:
+- Implementierung der End-to-End Integrations-Testsuite `ServerClientIntegrationTests.cs` in `Simulations-Master.Tests`:
+  - **Handshake & Registrierung (`HandshakeAndRegistration_EstablishesConnection_AndReceivesEnvironment`):** Automatisierter Test des TCP-Verbindungsaufbaus, `EnvironmentRequest`, `Register` und Validierung des initialen Snapshots gegen `TeamShared.SimulationMasterClient`.
+  - **Batterie-Client-Integration (`BatteryClient_HandshakeAndRegistration_Succeeds`):** Spezifischer Test der `Battery.Simulation.SimulationMasterClient`-Verbindung mit Realdaten-Initialisierung und Zeitstempel-Abgleich.
+  - **Zeitschritt-Barriere im Einzelclient-Betrieb (`TimeStepBarrier_SingleClient_SynchronizesVirtualTime`):** Synchronisation von virtuellem Zeitschritt (`TimeStep`), Bestätigung (`Acknowledgement`) und Fortschaltung der Simulations-Uhr.
+  - **Verteilte Zeitschritt-Barriere im Multi-Client-Betrieb (`TimeStepBarrier_MultiClient_AdvancesOnlyWhenAllClientsAcknowledge`):** Absicherung der Barrieren-Invariante: Bei zwei aktiven Clients (z. B. Charger und Battery) blockiert der Master das Vorrücken der Simulationszeit, solange nur ein Client bestätigt hat. Erst nach Eintreffen aller Bestätigungen schaltet der Zeitschritt weiter.
+  - **Zustands-Telemetrie (`ClientTelemetry_SendState_ProcessedWithoutInterruptingBarrier`):** Übertragung von Statusdaten (`ActivePowerKW`, `CumulativeEnergyKWh`, `StateOfChargePercent`) während der laufenden Simulation.
+  - **Wiederverbindungs-Zyklus (`ClientReconnection_ResumesCommunication_Cleanly`):** Trennung eines registrierten Clients und erneute Verbindung ohne Master-Neustart.
+  - **Ausfallsicherheit bei abruptem Verbindungsabbruch (`AbruptDisconnect_ServerRemovesClient_AndBarrierContinuesForRemaining`):** Automatisches Entfernen getrennter Stationen aus der Barriere, sodass verbleibende gesunde Simulatoren nicht dauerhaft blockiert werden.
+- Erweiterung des Test-Runners in `Simulations-Master.Tests/Program.cs` um die neue Testkategorie `[3] End-to-End Integrationstest: Server-/Client-Zusammenspiel`.
+### KI:
+Google Gemini 3.8 Flash via Antigravity Assistant zur Konzeptionierung, Protokollabdeckung und Verifikation der asynchronen Multi-Client-Integrationstests.
+### Artefact:
+`Simulations-Master.Tests/ServerClientIntegrationTests.cs`, `Simulations-Master.Tests/Simulations-Master.Tests.csproj`, `Simulations-Master.Tests/Program.cs`, `docs/development-journal/Nazar-Burdeinyi.md`, `Battery/development-journal.md`.
+### Test:
+- Vollständige Suite `Simulations-Master.Tests`: Alle 26/26 Tests (14 Engine-Tests, 5 TCP-Server-Tests, 7 E2E-Integrationstests) erfolgreich bestanden.
+- Gesamtlösung `dotNET_Programmierung_2026_Aufgabe_02.slnx` kompiliert fehlerfrei (`dotnet build -m:1`).

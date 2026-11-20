@@ -13,6 +13,7 @@ public class Program
 
         var engineTests = new SimulationEngineTests();
         var serverTests = new TcpSimulationServerTests();
+        var integrationTests = new ServerClientIntegrationTests();
 
         int passed = 0;
         int failed = 0;
@@ -91,7 +92,7 @@ public class Program
             () => engineTests.GetStatusSnapshot_ReturnsConsistentSnapshot());
 
         // --- Kategorie 2: TcpSimulationServer (Netzwerkprotokoll & Zeitschritt-Barriere) ---
-        Console.WriteLine("\n[2] TCP Server, Protokoll & Zeitschritt-Barriere (TcpSimulationServer):");
+        Console.WriteLine("\n[2] TCP Server, Protokoll & Basis-Funktionalität (TcpSimulationServer):");
         await RunAsyncTest("Server_BroadcastsEnvironment_UponClientConnection",
             () => serverTests.Server_BroadcastsEnvironment_UponClientConnection());
         await RunAsyncTest("Server_RespondsToEnvironmentRequest",
@@ -103,12 +104,29 @@ public class Program
         await RunAsyncTest("Server_AdvancesEngineVirtualTime_WhenClientAcknowledgesTimeStep",
             () => serverTests.Server_AdvancesEngineVirtualTime_WhenClientAcknowledgesTimeStep());
 
+        // --- Kategorie 3: End-to-End Integrationstest (Server-/Client-Zusammenspiel) ---
+        Console.WriteLine("\n[3] End-to-End Integrationstest: Server-/Client-Zusammenspiel:");
+        await RunAsyncTest("HandshakeAndRegistration_EstablishesConnection_AndReceivesEnvironment",
+            () => integrationTests.HandshakeAndRegistration_EstablishesConnection_AndReceivesEnvironment());
+        await RunAsyncTest("BatteryClient_HandshakeAndRegistration_Succeeds",
+            () => integrationTests.BatteryClient_HandshakeAndRegistration_Succeeds());
+        await RunAsyncTest("TimeStepBarrier_SingleClient_SynchronizesVirtualTime",
+            () => integrationTests.TimeStepBarrier_SingleClient_SynchronizesVirtualTime());
+        await RunAsyncTest("TimeStepBarrier_MultiClient_AdvancesOnlyWhenAllClientsAcknowledge",
+            () => integrationTests.TimeStepBarrier_MultiClient_AdvancesOnlyWhenAllClientsAcknowledge());
+        await RunAsyncTest("ClientTelemetry_SendState_ProcessedWithoutInterruptingBarrier",
+            () => integrationTests.ClientTelemetry_SendState_ProcessedWithoutInterruptingBarrier());
+        await RunAsyncTest("ClientReconnection_ResumesCommunication_Cleanly",
+            () => integrationTests.ClientReconnection_ResumesCommunication_Cleanly());
+        await RunAsyncTest("AbruptDisconnect_ServerRemovesClient_AndBarrierContinuesForRemaining",
+            () => integrationTests.AbruptDisconnect_ServerRemovesClient_AndBarrierContinuesForRemaining());
+
         // --- Gesamtergebnis ---
         Console.WriteLine("\n=================================================================");
         if (failed == 0)
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"  Ergebnis: Alle {passed}/{passed} Simulation Master Tests erfolgreich bestanden! 🎉");
+            Console.WriteLine($"  Ergebnis: Alle {passed}/{passed} Simulation Master & Integration Tests erfolgreich bestanden! 🎉");
             Console.ResetColor();
             Console.WriteLine("=================================================================\n");
             return 0;

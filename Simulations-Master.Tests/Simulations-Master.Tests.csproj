@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Simulations-Master\Simulations-Master.csproj" />
     <ProjectReference Include="..\TeamShared\TeamShared.csproj" />
+    <ProjectReference Include="..\Battery\Battery.csproj" />
   </ItemGroup>
 
 </Project>
