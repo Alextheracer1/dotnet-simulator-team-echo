@@ -117,6 +117,16 @@ Die Systementwicklung wurde im Team partnerschaftlich nach klaren Modulgrenzen a
 | **`TeamRabbitMQShared.Tests`**| Testprojekt | – | 9 automatisierte Unit- und Integrationstests für Telemetrie-Mapping, Command-Handling, Routing-Keys und Weather-Push. | *Alexander Graf* |
 | **`Dual-Port-Charger.Tests`** | Testprojekt | – | 27 automatisierte Tests für Ladekurven-Interpolation, Port-Physik, Dynamic Load Balancing und Störungsmanagement. | *Alexander Graf* |
 
+### 🐳 Simulator-Container pro Person (Aufgabe 04 – Schritt 5)
+
+Gemäß der Aufgabenstellung 04 betreibt jedes Teammitglied einen selbst verantworteten Simulator in einem Docker-Container und bindet diesen über das Netzwerk in die gemeinsame Simulation ein:
+
+| Teammitglied | Simulator / Dienst | Container-Name | Dockerfile | Gemappte Ports | Status & Konfiguration |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Alexander Graf** | `Dual-Port-Charger` | `energy-twin-dual-port-charger` | [Dual-Port-Charger/Dockerfile](Dual-Port-Charger/Dockerfile) | `1502:1502` (Modbus TCP) | ✅ Integriert in `docker-compose.yml`, Auto-Modus, Master- & RabbitMQ-Verbindung |
+| **Nazar Burdeinyi** | `Battery` / `Simulations-Master` | *(in Umsetzung)* | – | – | Geplant |
+| **Nikolas Giesen** | `WeatherSimulator` / `PV_Simulator` | *(in Umsetzung)* | – | – | Geplant |
+
 ---
 
 ## 🔌 Netzwerk-, Port- & Register-Matrix
@@ -196,13 +206,21 @@ Alle Feldgeräte implementieren im Registerkopf das einheitliche **LB02 Holding-
 * **[Docker](https://www.docker.com/) & Docker Compose** (für den RabbitMQ-Broker)
 * Ein Terminal mit Unterstützung für **UTF-8 & ANSI-Farben** (Windows Terminal, Apple Terminal, iTerm2 oder VS Code Terminal)
 
-### 2. RabbitMQ Broker starten
-Der Broker wird über das vorbereitete `docker-compose.yml` gestartet:
+### 2. RabbitMQ Broker & Containerisierte Simulatoren starten
+Die Container-Infrastruktur wird über das zentrale `docker-compose.yml` gestartet:
 ```bash
+# Gesamte Infrastruktur (RabbitMQ Broker + Dual-Port-Charger Simulator) starten:
 docker compose up -d
+
+# Nur RabbitMQ Broker starten:
+docker compose up -d rabbitmq
+
+# Nur den containerisierten Dual-Port-Charger starten:
+docker compose up -d dual-port-charger
 ```
 * **Broker:** `localhost:5672`
 * **Management Web-UI:** `http://localhost:15672` (Benutzer: `guest`, Passwort: `guest`)
+* **Dual-Port Charger Modbus TCP:** `localhost:1502`
 
 ### 3. Solution kompilieren
 Kompilieren Sie alle 14 Projekte der Solution:

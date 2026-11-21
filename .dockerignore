@@ -1,0 +1,11 @@
+**/.git
+**/.github
+**/.idea
+**/.vs
+**/.gemini
+**/bin/
+**/obj/
+**/logs/
+**/TestResults/
+*.user
+*.suo

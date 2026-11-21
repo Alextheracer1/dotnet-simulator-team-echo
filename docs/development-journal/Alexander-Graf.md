@@ -181,4 +181,31 @@ Optionale Tags bei Relevanz:
 - **Test:** Prüfung aller relativen Markdown-Links und Pfade, Verifikation des Solution-Builds (`dotnet build dotNET_Programmierung_2026_Aufgabe_02.slnx -m:1 --no-restore` mit 0 Fehlern) und Ausführung der Testrunner.
 - **Comment:** Die überarbeitete Root-`README.md` bietet nun sowohl Lehrenden als auch Entwicklern einen optimalen, sofort verständlichen Einstiegspunkt mit allen notwendigen Startbefehlen, Architekturdiagrammen und Spezifikationen.
 
+## 2026-11-21 – Docker-Containerisierung Dual-Port-Charger (Aufgabe 04 / Schritt 5)
+
+### Multi-Stage Dockerfile & Docker-Compose Integration
+- **Done:** Vollständige Containerisierung des `Dual-Port-Charger` Simulators gemäß den Anforderungen aus Aufgabe 04 (Schritt 5):
+  - `.dockerignore`: Im Root-Verzeichnis erstellt zum Ausschluss von `.git`, `.vs`, `bin/`, `obj/`, temporären Build-Artefakten und Logs für schlanke, schnelle Docker-Build-Kontexte.
+  - `Dual-Port-Charger/Dockerfile`: Versioniertes Multi-Stage Dockerfile implementiert:
+    - Build-Stage: `mcr.microsoft.com/dotnet/sdk:10.0` zur Kompilierung von `Dual-Port-Charger` und den abhängigen Shared-Bibliotheken (`TeamShared`, `TeamConsoleShared`, `TeamRabbitMQShared`) mit Schicht-Caching (`dotnet restore`).
+    - Runtime-Stage: `mcr.microsoft.com/dotnet/runtime:10.0` als minimales Basis-Image, Arbeitsverzeichnis `/app`, Exponierung des Modbus-TCP-Ports 1502 und Standard-Umgebungsvariablen (`SIMULATION_MASTER_HOST`, `SIMULATION_MASTER_PORT`, `RABBITMQ_HOST`, `RABBITMQ_PORT`).
+  - `docker-compose.yml`: Erweitert um den Dienst `dual-port-charger`:
+    - Port-Mapping `1502:1502` für Modbus-TCP.
+    - Automatischer Start nach erfolgreichem Healthcheck des RabbitMQ-Brokers (`condition: service_healthy`).
+    - Volume-Mount `./logs/charger:/app/logs` zur Persistierung der `simulation.csv` auf dem Host.
+    - `extra_hosts` mit `host.docker.internal:host-gateway` für plattformübergreifende Erreichbarkeit des auf dem Host laufenden `Simulations-Master` (Port 1510).
+  - Dokumentation nachgeführt:
+    - `Dual-Port-Charger/README.md`: Vollständig überarbeitet mit Build-, Start- und Bedienungsanleitung (Docker Compose & `docker run`), Umgebungsvariablen, Logging-Pfade und Schnittstellenübersicht.
+    - `README.md`: Team-Zuordnungstabelle gemäß Schritt 5 um den containerisierten `Dual-Port-Charger` ergänzt sowie die Schnellstart-Anweisungen erweitert.
+- **KI:** Google Gemini 3.8 Flash (High) via Antigravity Assistant. Vorab-Besprechung des technischen Konzepts mit dem Entwickler, Konzeption des Multi-Stage Dockerfiles mit Layer-Caching für Multi-Projekt-Solutions, Einbindung in Docker Compose mit `extra_hosts` und Verifikation der Netzwerkports.
+- **Artefact:** `.dockerignore`, `Dual-Port-Charger/Dockerfile`, `docker-compose.yml`, `Dual-Port-Charger/README.md`, `README.md`, `docs/development-journal/Alexander-Graf.md`.
+- **Test:** 
+  - Docker-Build erfolgreich abgeschlossen (`docker compose build dual-port-charger` in 23.2s).
+  - Integrationstest via `docker compose up -d`: Container `energy-twin-dual-port-charger` startete fehlerfrei und verband sich erfolgreich mit RabbitMQ (Telemetrie publiziert auf `sim.telemetry.charger.1`).
+  - Port-Check: Modbus-TCP-Port 1502 auf `127.0.0.1` erfolgreich erreichbar (`Connection to 127.0.0.1 port 1502 succeeded`).
+  - Volume-Prüfung: CSV-Logdatei `logs/charger/simulation.csv` wird pro Tick auf dem Host fortgeschrieben.
+  - Regressionstest der Solution: Clean Build mit 0 Fehlern und erfolgreiche Ausführung aller 27/27 Tests in `Dual-Port-Charger.Tests`.
+- **Comment:** Durch die Entkopplung über Umgebungsvariablen und `extra_hosts` kann der Container nahtlos sowohl im reinen Docker-Netzwerk (mit RabbitMQ) als auch im hybriden Modus (mit auf dem Host laufendem Simulations-Master) betrieben werden, ohne Codeänderungen vornehmen zu müssen.
+
+
 

@@ -19,6 +19,29 @@ services:
       retries: 5
       start_period: 15s
 
+  dual-port-charger:
+    build:
+      context: .
+      dockerfile: Dual-Port-Charger/Dockerfile
+    container_name: energy-twin-dual-port-charger
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_DEFAULT_USER:-guest}
+      - RABBITMQ_PASS=${RABBITMQ_DEFAULT_PASS:-guest}
+      - SIMULATION_MASTER_HOST=${SIMULATION_MASTER_HOST:-host.docker.internal}
+      - SIMULATION_MASTER_PORT=${SIMULATION_MASTER_PORT:-1510}
+    ports:
+      - "1502:1502"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./logs/charger:/app/logs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
 volumes:
   rabbitmq_data:
     name: energy-twin-rabbitmq-data
